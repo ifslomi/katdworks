@@ -111,13 +111,48 @@ export default function Portfolio() {
       >
         <div className="min-w-[220px] flex items-center gap-3">
           {data.ui.navLogoUrl && (
-            <img
-              src={data.ui.navLogoUrl}
-              alt="Brand"
-              className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-white"
-              referrerPolicy="no-referrer"
-            />
+            <div className="relative group">
+              <img
+                src={data.ui.navLogoUrl}
+                alt="Brand"
+                className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-white"
+                referrerPolicy="no-referrer"
+              />
+              {isEditMode && (
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl z-10">
+                  <button
+                    onClick={() => fileInputRefs.current['navLogo']?.click()}
+                    className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+            </div>
           )}
+          {isEditMode && !data.ui.navLogoUrl && (
+            <button
+              onClick={() => fileInputRefs.current['navLogo']?.click()}
+              className="text-[10px] font-bold bg-white/20 text-white px-2 py-1 rounded hover:bg-white/30 transition-colors border border-white/30"
+            >
+              + Logo
+            </button>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            ref={el => fileInputRefs.current['navLogo'] = el}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFileUpload(file, 'logos', (url) => {
+                  updateData({ ui: { ...data.ui, navLogoUrl: url } });
+                }, 'navLogo');
+              }
+              e.currentTarget.value = '';
+            }}
+            className="hidden"
+          />
           <div className="text-xl font-headline font-black text-primary">
             <InlineText value={data.ui.navTitle} onChange={(val) => updateData({ ui: { ...data.ui, navTitle: val } })} />
           </div>
@@ -891,8 +926,48 @@ export default function Portfolio() {
           <div className="text-center md:text-left">
             <div className="font-headline font-bold text-2xl text-primary mb-2 flex items-center justify-center md:justify-start gap-3">
               {data.ui.footerLogoUrl && (
-                <img src={data.ui.footerLogoUrl} alt="Footer brand" className="w-8 h-8 rounded-lg object-cover border border-outline-variant/20" referrerPolicy="no-referrer" />
+                <div className="relative group">
+                  <img
+                    src={data.ui.footerLogoUrl}
+                    alt="Footer brand"
+                    className="w-8 h-8 rounded-lg object-cover border border-outline-variant/20"
+                    referrerPolicy="no-referrer"
+                  />
+                  {isEditMode && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg z-10">
+                      <button
+                        onClick={() => fileInputRefs.current['footerLogo']?.click()}
+                        className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
+              {isEditMode && !data.ui.footerLogoUrl && (
+                <button
+                  onClick={() => fileInputRefs.current['footerLogo']?.click()}
+                  className="text-[10px] font-bold bg-surface-container-highest text-primary px-2 py-1 rounded hover:bg-outline-variant transition-colors border border-outline-variant/20"
+                >
+                  + Logo
+                </button>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                ref={el => fileInputRefs.current['footerLogo'] = el}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(file, 'logos', (url) => {
+                      updateData({ ui: { ...data.ui, footerLogoUrl: url } });
+                    }, 'footerLogo');
+                  }
+                  e.currentTarget.value = '';
+                }}
+                className="hidden"
+              />
               <InlineText value={data.ui.footerTitle} onChange={(val) => updateData({ ui: { ...data.ui, footerTitle: val } })} />
             </div>
             <p className="text-secondary font-body text-sm">© 2024 {data.ui.footerTitle}. All rights reserved.</p>
