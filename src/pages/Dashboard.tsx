@@ -1,15 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { sileo } from 'sileo';
 import { auth, storage, db } from '../firebase';
-import { doc, getDoc, collection, getDocs, orderBy, query, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, orderBy, query, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
 import { IconPicker } from '../components/IconPicker';
 
+const BRAND_NAME = 'Virtual Curator';
+const LEGAL_ENTITY = 'Katdworks Creative Technology';
+const SUPPORT_EMAIL = 'support@katdworks.com';
+const SUPPORT_HOURS = 'Monday-Friday, 9:00 AM - 6:00 PM (UTC+8)';
+const POLICY_EFFECTIVE_DATE = '2026-03-23';
+const POLICY_VERSION = 'v1.0';
+
 export default function Dashboard() {
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const { data, loading: dataLoading, updateData } = usePortfolioData();
@@ -30,6 +39,13 @@ export default function Dashboard() {
   });
   const [dailyStats, setDailyStats] = useState<Array<{ date: string; views: number; downloads: number; bottomScrolls: number }>>([]);
   const [analyticsRange, setAnalyticsRange] = useState<7 | 30 | 90>(30);
+  const [activeModal, setActiveModal] = useState<null | 'userGuide' | 'prioritySupport' | 'privacy' | 'terms' | 'contact'>(null);
+  const [supportSubject, setSupportSubject] = useState('Dashboard Priority Support');
+  const [supportCategory, setSupportCategory] = useState<'bug' | 'incident' | 'billing' | 'account' | 'other'>('bug');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportPriority, setSupportPriority] = useState<'high' | 'urgent'>('high');
+  const [supportConsent, setSupportConsent] = useState(false);
+  const [supportSubmitting, setSupportSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
@@ -47,7 +63,10 @@ export default function Dashboard() {
       }, 
       (error) => {
         console.error("Upload error:", error);
-        alert("Failed to upload file. Please try again.");
+        sileo.warning({
+          title: 'Upload failed',
+          description: 'Please retry the upload. If this persists, check your connection and file type.'
+        });
         setUploadProgress(prev => {
           const newProgress = { ...prev };
           delete newProgress[path];
@@ -108,8 +127,18 @@ export default function Dashboard() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      sileo.info({
+        title: 'Signed out',
+        description: 'You have been securely logged out.',
+        duration: 1800
+      });
       navigate('/login');
-    } catch (error) {}
+    } catch (error) {
+      sileo.warning({
+        title: 'Sign-out failed',
+        description: 'Please try again.'
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -119,11 +148,85 @@ export default function Dashboard() {
     try {
       await updateData(formData);
       setSaveMessage('Changes published successfully!');
+      sileo.info({
+        title: 'Changes published',
+        description: 'Your portfolio content has been updated.',
+        duration: 2200
+      });
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
       setSaveMessage('Error saving changes.');
+      sileo.warning({
+        title: 'Publish failed',
+        description: 'Unable to save changes right now. Please retry.'
+      });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenUserGuide = () => {
+    setActiveModal('userGuide');
+  };
+
+  const handlePrioritySupport = () => {
+    setSupportCategory('bug');
+    setSupportConsent(false);
+    setActiveModal('prioritySupport');
+  };
+
+  const handleSubmitPrioritySupport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (supportMessage.trim().length < 30) {
+      sileo.warning({
+        title: 'More detail required',
+        description: 'Please provide at least 30 characters so support can triage accurately.'
+      });
+      return;
+    }
+    if (!supportConsent) {
+      sileo.warning({
+        title: 'Consent required',
+        description: 'Please confirm consent for support processing before submission.'
+      });
+      return;
+    }
+    setSupportSubmitting(true);
+    try {
+      await addDoc(collection(db, 'support_requests'), {
+        brand: BRAND_NAME,
+        legalEntity: LEGAL_ENTITY,
+        subject: supportSubject.trim(),
+        category: supportCategory,
+        message: supportMessage.trim(),
+        priority: supportPriority,
+        source: 'dashboard',
+        status: 'open',
+        consent: true,
+        userId: user?.uid || null,
+        userEmail: user?.email || null,
+        appPath: '/dashboard',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+        policyVersion: POLICY_VERSION,
+        createdAt: serverTimestamp()
+      });
+      sileo.info({
+        title: 'Support request sent',
+        description: 'Your priority support request has been submitted.'
+      });
+      setSupportMessage('');
+      setSupportSubject('Dashboard Priority Support');
+      setSupportCategory('bug');
+      setSupportPriority('high');
+      setSupportConsent(false);
+      setActiveModal(null);
+    } catch (error) {
+      sileo.warning({
+        title: 'Submit failed',
+        description: 'Unable to send your support request. Please try again.'
+      });
+    } finally {
+      setSupportSubmitting(false);
     }
   };
 
@@ -361,9 +464,14 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="editorial-grid min-h-screen">
+    <div className="editorial-grid min-h-screen relative">
       {/* Sidebar Navigation */}
-      <aside className="bg-surface-container border-r border-outline-variant/10 flex flex-col h-screen sticky top-0 p-8 overflow-y-auto">
+      <motion.aside
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="bg-surface-container border-r border-outline-variant/10 flex flex-col h-screen sticky top-0 p-8 overflow-y-auto"
+      >
         <div className="mb-12">
           <h1 className="font-headline font-black text-2xl text-primary tracking-tighter">Virtual Curator</h1>
           <p className="font-body text-[10px] uppercase tracking-[0.2em] text-secondary mt-1">Admin Control Suite</p>
@@ -391,17 +499,28 @@ export default function Dashboard() {
               </div>
             </div>
             <button onClick={handleSignOut} className="flex items-center gap-2 text-secondary hover:text-primary transition-colors text-xs font-bold uppercase tracking-widest px-1">
+              <span className="sr-only">Sign out</span>
               <span className="material-symbols-outlined text-sm" data-icon="logout">logout</span>
               Logout
             </button>
           </div>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* Main Workspace */}
-      <main className="p-6 md:p-12 overflow-x-hidden w-full">
+      <motion.main
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="p-6 md:p-12 overflow-x-hidden w-full"
+      >
         {/* Header Section */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-16">
+        <motion.header
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05, ease: 'easeOut' }}
+          className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-16"
+        >
           <div>
             <h2 className="font-headline text-4xl md:text-5xl font-black text-primary -ml-1 tracking-tight">{activeTab === 'editor' ? 'Content Editor' : 'Analytics'}</h2>
             <p className="font-body text-secondary mt-2 max-w-md">
@@ -421,18 +540,23 @@ export default function Dashboard() {
                   <Link to="/" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-white flex items-center justify-center">
                   Preview Site
                   </Link>
-                  <button disabled={isSaving} onClick={handleSave} className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-xl shadow-primary/10 active:scale-95 transition-all flex items-center justify-center gap-2">
+                  <button disabled={isSaving} onClick={handleSave} title="Publish your latest content changes" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-xl shadow-primary/10 active:scale-95 transition-all flex items-center justify-center gap-2">
                   {isSaving ? 'Saving...' : 'Publish Changes'}
                   </button>
               </div>
             </div>
           )}
-        </header>
+        </motion.header>
 
         <div className="grid grid-cols-12 gap-8">
 
           {activeTab === 'analytics' && (
-            <div className="col-span-12 flex flex-col gap-8 w-full p-4 lg:p-10 max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="col-span-12 flex flex-col gap-8 w-full p-4 lg:p-10 max-w-7xl mx-auto"
+            >
                 <div className="flex justify-end">
                   <div className="inline-flex rounded-lg bg-surface-container-high p-1 border border-outline-variant/20">
                     {[7, 30, 90].map((range) => (
@@ -571,7 +695,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
           )}
 
           {activeTab === 'editor' && (
@@ -640,27 +764,27 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">About Heading</label>
-                    <input value={formData.ui.sectionTitles.about} onChange={(e) => handleSectionTitleChange('about', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input value={formData.ui.sectionTitles.about} onChange={(e) => handleSectionTitleChange('about', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Experience Heading</label>
-                    <input value={formData.ui.sectionTitles.experience} onChange={(e) => handleSectionTitleChange('experience', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input value={formData.ui.sectionTitles.experience} onChange={(e) => handleSectionTitleChange('experience', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Skills Heading</label>
-                    <input value={formData.ui.sectionTitles.skills} onChange={(e) => handleSectionTitleChange('skills', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input value={formData.ui.sectionTitles.skills} onChange={(e) => handleSectionTitleChange('skills', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Projects Heading</label>
-                    <input value={formData.ui.sectionTitles.projects} onChange={(e) => handleSectionTitleChange('projects', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input value={formData.ui.sectionTitles.projects} onChange={(e) => handleSectionTitleChange('projects', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Contact Heading</label>
-                    <input value={formData.ui.sectionTitles.contact} onChange={(e) => handleSectionTitleChange('contact', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input value={formData.ui.sectionTitles.contact} onChange={(e) => handleSectionTitleChange('contact', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certifications Heading</label>
-                    <input value={formData.ui.certificationsTitle} onChange={(e) => handleBrandingChange('certificationsTitle', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input value={formData.ui.certificationsTitle} onChange={(e) => handleBrandingChange('certificationsTitle', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                 </div>
               </div>
@@ -678,12 +802,24 @@ export default function Dashboard() {
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50 space-y-6">
                 <div className="mt-6">
                   <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Portfolio Headline</label>
-                  <input name="headline" value={formData.hero.headline} onChange={handleHeroChange} className="w-full bg-surface-container-low border-none rounded-lg p-4 font-headline text-2xl text-primary focus:ring-2 focus:ring-secondary/20" type="text" />
+                  <input
+                    name="headline"
+                    value={formData.hero.headline}
+                    onChange={handleHeroChange}
+                    className="w-full bg-transparent border-none rounded-lg p-0 font-headline text-4xl md:text-5xl lg:text-6xl font-black text-primary leading-tight -tracking-wider focus:ring-0"
+                    type="text"
+                  />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Sub-headline</label>
-                    <input name="subheadline" value={formData.hero.subheadline} onChange={handleHeroChange} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary" type="text" />
+                    <input
+                      name="subheadline"
+                      value={formData.hero.subheadline}
+                      onChange={handleHeroChange}
+                      className="w-full bg-transparent border-none rounded-lg p-0 font-headline text-3xl md:text-4xl font-black text-primary leading-tight -tracking-wider focus:ring-0"
+                      type="text"
+                    />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Portfolio PDF</label>
@@ -696,7 +832,13 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Description</label>
-                  <textarea name="description" value={formData.hero.description} onChange={handleHeroChange} className="w-full bg-surface-container-low border-none rounded-lg p-4 font-body text-sm text-on-surface-variant focus:ring-2 focus:ring-secondary/20" rows={3}></textarea>
+                  <textarea
+                    name="description"
+                    value={formData.hero.description}
+                    onChange={handleHeroChange}
+                    className="w-full bg-transparent border-none rounded-lg p-0 font-body text-base leading-relaxed text-on-surface-variant focus:ring-0"
+                    rows={3}
+                  ></textarea>
                 </div>
                 <div>
                   <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Profile Visual</label>
@@ -985,11 +1127,25 @@ export default function Dashboard() {
               <div className="bg-white p-6 rounded-xl border border-outline-variant/20 shadow-sm">
                 <h4 className="font-body font-bold text-primary text-xs uppercase tracking-widest mb-4">Help &amp; Support</h4>
                 <ul className="space-y-3">
-                  <li className="flex items-center gap-2 text-xs text-secondary hover:text-primary cursor-pointer transition-colors">
-                    <span className="material-symbols-outlined text-sm" data-icon="menu_book">menu_book</span> User Guide
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleOpenUserGuide}
+                      title="Open user guide"
+                      className="w-full text-left flex items-center gap-2 text-xs text-secondary hover:text-primary cursor-pointer transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-sm" data-icon="menu_book">menu_book</span> User Guide
+                    </button>
                   </li>
-                  <li className="flex items-center gap-2 text-xs text-secondary hover:text-primary cursor-pointer transition-colors">
-                    <span className="material-symbols-outlined text-sm" data-icon="support_agent">support_agent</span> Priority Support
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handlePrioritySupport}
+                      title="Open priority support form"
+                      className="w-full text-left flex items-center gap-2 text-xs text-secondary hover:text-primary cursor-pointer transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-sm" data-icon="support_agent">support_agent</span> Priority Support
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -1001,15 +1157,159 @@ export default function Dashboard() {
 
         {/* Footer Meta */}
         <footer className="mt-24 py-8 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center text-secondary">
-          <p className="font-body text-[10px] uppercase tracking-widest">© 2024 Virtual Curator. All rights reserved.</p>
+          <p className="font-body text-[10px] uppercase tracking-widest">© {currentYear} Virtual Curator. All rights reserved.</p>
           <div className="flex gap-8 mt-4 md:mt-0">
-            <Link className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors" to="#">Privacy Policy</Link>
-            <Link className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors" to="#">Terms of Service</Link>
-            <Link className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors" to="#">Contact Info</Link>
+            <button type="button" onClick={() => setActiveModal('privacy')} className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors">Privacy Policy</button>
+            <button type="button" onClick={() => setActiveModal('terms')} className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors">Terms of Service</button>
+            <button type="button" onClick={() => setActiveModal('contact')} className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors">Contact Info</button>
           </div>
         </footer>
 
-      </main>
+        <AnimatePresence>
+          {activeModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setActiveModal(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className="w-full max-w-2xl bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/20 bg-surface-container-low">
+                  <h3 className="font-headline text-xl font-bold text-primary">
+                    {activeModal === 'userGuide' && 'User Guide'}
+                    {activeModal === 'prioritySupport' && 'Priority Support'}
+                    {activeModal === 'privacy' && 'Privacy Policy'}
+                    {activeModal === 'terms' && 'Terms of Service'}
+                    {activeModal === 'contact' && 'Contact Info'}
+                  </h3>
+                  <button onClick={() => setActiveModal(null)} className="text-secondary hover:text-primary">
+                    <span className="material-symbols-outlined" data-icon="close">close</span>
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4 text-sm text-on-surface-variant max-h-[70vh] overflow-y-auto">
+                  {activeModal === 'userGuide' && (
+                    <div className="space-y-3">
+                      <p><span className="font-semibold text-primary">Operational Scope:</span> Use Content Editor to update public profile content, certifications, expertise, and projects. Draft edits auto-save; Publish is the release action.</p>
+                      <p><span className="font-semibold text-primary">Analytics Scope:</span> Use Analytics for live metrics such as visits, downloads, scroll-depth, and referrer acquisition with 7/30/90-day range filtering.</p>
+                      <p><span className="font-semibold text-primary">Asset Standards:</span> Upload optimized web assets only. Supported types: image files for logos/visuals and PDF for portfolio download.</p>
+                      <p><span className="font-semibold text-primary">Governance:</span> All updates are attributable to the authenticated admin account and are subject to internal content governance.</p>
+                    </div>
+                  )}
+
+                  {activeModal === 'prioritySupport' && (
+                    <form onSubmit={handleSubmitPrioritySupport} className="space-y-4">
+                      <div>
+                        <label className="block text-xs uppercase tracking-widest text-secondary mb-2">Subject</label>
+                        <input
+                          value={supportSubject}
+                          onChange={(e) => setSupportSubject(e.target.value)}
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-primary"
+                          type="text"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase tracking-widest text-secondary mb-2">Category</label>
+                        <select
+                          value={supportCategory}
+                          onChange={(e) => setSupportCategory(e.target.value as 'bug' | 'incident' | 'billing' | 'account' | 'other')}
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-primary"
+                        >
+                          <option value="bug">Bug / Functional Error</option>
+                          <option value="incident">Production Incident</option>
+                          <option value="billing">Billing / Subscription</option>
+                          <option value="account">Account / Access</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase tracking-widest text-secondary mb-2">Priority</label>
+                        <select
+                          value={supportPriority}
+                          onChange={(e) => setSupportPriority(e.target.value as 'high' | 'urgent')}
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-primary"
+                        >
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase tracking-widest text-secondary mb-2">Issue Details</label>
+                        <textarea
+                          value={supportMessage}
+                          onChange={(e) => setSupportMessage(e.target.value)}
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-primary min-h-[130px]"
+                          placeholder="Describe the issue, steps to reproduce, expected vs actual behavior..."
+                          required
+                        />
+                        <p className="mt-2 text-[11px] text-secondary">Include impact, frequency, and affected audience to accelerate triage.</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <input
+                          id="support-consent"
+                          type="checkbox"
+                          checked={supportConsent}
+                          onChange={(e) => setSupportConsent(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 accent-primary"
+                        />
+                        <label htmlFor="support-consent" className="text-xs text-on-surface-variant leading-relaxed">
+                          I confirm this request is accurate and I consent to processing operational metadata for support handling under {POLICY_VERSION}.
+                        </label>
+                      </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 rounded-lg bg-surface-container-high text-secondary font-bold text-xs uppercase tracking-widest">Cancel</button>
+                        <button disabled={supportSubmitting} type="submit" className="px-4 py-2 rounded-lg bg-primary text-on-primary font-bold text-xs uppercase tracking-widest disabled:opacity-70">
+                          {supportSubmitting ? 'Sending...' : 'Send Request'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {activeModal === 'privacy' && (
+                    <div className="space-y-3">
+                      <p><span className="font-semibold text-primary">Effective Date:</span> {POLICY_EFFECTIVE_DATE} • <span className="font-semibold text-primary">Version:</span> {POLICY_VERSION}</p>
+                      <p>{LEGAL_ENTITY} processes limited operational data to deliver the admin dashboard, secure account access, and maintain service reliability.</p>
+                      <p>Data categories include authentication identifiers, content edits, analytics aggregates, and support request metadata submitted by administrators.</p>
+                      <p>We do not sell personal data. Access is restricted by Firebase authentication, authorization rules, and role-based admin access.</p>
+                      <p>For privacy inquiries or data requests, contact {SUPPORT_EMAIL}.</p>
+                    </div>
+                  )}
+
+                  {activeModal === 'terms' && (
+                    <div className="space-y-3">
+                      <p><span className="font-semibold text-primary">Effective Date:</span> {POLICY_EFFECTIVE_DATE} • <span className="font-semibold text-primary">Version:</span> {POLICY_VERSION}</p>
+                      <p>By using the {BRAND_NAME} admin dashboard, you agree to lawful and authorized use of platform tools, content, and data.</p>
+                      <p>You are responsible for account credential security, editorial accuracy, and preventing unauthorized access from your session.</p>
+                      <p>Abuse, malicious behavior, or attempts to bypass security controls may result in access suspension and formal investigation.</p>
+                      <p>Service features may evolve; continued use indicates acceptance of current published terms and policy updates.</p>
+                    </div>
+                  )}
+
+                  {activeModal === 'contact' && (
+                    <div className="space-y-2">
+                      <p><span className="font-semibold text-primary">Brand:</span> {BRAND_NAME}</p>
+                      <p><span className="font-semibold text-primary">Legal Entity:</span> {LEGAL_ENTITY}</p>
+                      <p><span className="font-semibold text-primary">Support Email:</span> {SUPPORT_EMAIL}</p>
+                      <p><span className="font-semibold text-primary">Support Window:</span> {SUPPORT_HOURS}</p>
+                      <p><span className="font-semibold text-primary">Escalation:</span> Use Priority Support for production-impacting incidents.</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+      </motion.main>
     </div>
   );
 }

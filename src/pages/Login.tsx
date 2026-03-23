@@ -7,6 +7,7 @@ import { auth } from '../firebase';
 
 export default function Login() {
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,19 @@ export default function Login() {
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
+      const code = err?.code || '';
+      let description = 'Unable to sign in right now. Please try again.';
+      if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+        description = 'Invalid email or password. Please check your credentials.';
+      } else if (code.includes('too-many-requests')) {
+        description = 'Too many attempts detected. Please wait and try again.';
+      } else if (code.includes('network-request-failed')) {
+        description = 'Network error. Check your internet connection and retry.';
+      }
+      sileo.warning({
+        title: 'Authentication error',
+        description
+      });
     } finally {
       setLoading(false);
     }
@@ -107,7 +121,7 @@ export default function Login() {
             </div>
             {/* Footer style pattern inside branding */}
             <div className="mt-12 pt-8 border-t border-white/10 relative z-10">
-              <p className="text-[10px] text-on-primary-container/60 font-label tracking-wider uppercase">© 2024 Virtual Curator</p>
+              <p className="text-[10px] text-on-primary-container/60 font-label tracking-wider uppercase">© {currentYear} Virtual Curator</p>
             </div>
           </div>
 
@@ -139,6 +153,7 @@ export default function Login() {
                       id="email" 
                       type="email" 
                       placeholder="admin@example.com" 
+                      title="Enter your admin email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -159,6 +174,7 @@ export default function Login() {
                       id="password" 
                       type="password" 
                       placeholder="••••••••••••" 
+                      title="Enter your account password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -171,6 +187,7 @@ export default function Login() {
                   <input
                     id="rememberMe"
                     type="checkbox"
+                    title="Keep me signed in on this device"
                     className="h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary accent-primary"
                     checked={rememberMe}
                     onChange={(e) => {
@@ -193,6 +210,7 @@ export default function Login() {
                   variants={fadeUp}
                   className="w-full bg-primary text-on-primary py-5 rounded-lg font-label font-bold uppercase tracking-widest text-sm hover:bg-secondary active:scale-[0.98] transition-all duration-300 shadow-lg shadow-primary/10 disabled:opacity-70" 
                   type="submit"
+                  title="Sign in to open the admin dashboard"
                   disabled={loading}
                 >
                   {loading ? 'Authenticating...' : 'Login to Dashboard'}
@@ -206,7 +224,7 @@ export default function Login() {
       {/* Footer */}
       <footer className="w-full py-8 px-8 mt-auto flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto border-t border-outline-variant/10">
         <div className="font-headline font-bold text-primary">Virtual Curator</div>
-        <div className="text-[11px] font-label text-secondary-fixed-variant opacity-60 tracking-wider">© 2024 KATRINA'S PORTFOLIO. ALL RIGHTS RESERVED.</div>
+        <div className="text-[11px] font-label text-secondary-fixed-variant opacity-60 tracking-wider">© {currentYear} KATRINA'S PORTFOLIO. ALL RIGHTS RESERVED.</div>
       </footer>
     </div>
   );
