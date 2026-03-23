@@ -273,6 +273,86 @@ export default function Dashboard() {
     });
   };
 
+  const handleEducationChange = (id: string, field: string, value: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        education: prev.education.map(entry =>
+          entry.id === id ? { ...entry, [field]: value } : entry
+        )
+      };
+    });
+  };
+
+  const handleAddEducation = () => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        education: [
+          ...prev.education,
+          { id: Date.now().toString(), program: 'New Program', school: 'School Name', period: 'Year', details: 'Details' }
+        ]
+      };
+    });
+  };
+
+  const handleRemoveEducation = (id: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        education: prev.education.filter(entry => entry.id !== id)
+      };
+    });
+  };
+
+  const handleTrainingChange = (id: string, field: string, value: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        trainings: prev.trainings.map(entry =>
+          entry.id === id ? { ...entry, [field]: value } : entry
+        )
+      };
+    });
+  };
+
+  const handleAddTraining = () => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        trainings: [
+          ...prev.trainings,
+          { id: Date.now().toString(), title: 'New Training', provider: 'Provider', date: 'Year', details: 'Details' }
+        ]
+      };
+    });
+  };
+
+  const handleRemoveTraining = (id: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        trainings: prev.trainings.filter(entry => entry.id !== id)
+      };
+    });
+  };
+
+  const handleContactChange = (field: string, value: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        contact: { ...prev.contact, [field]: value }
+      };
+    });
+  };
+
   const handleAddSkill = () => {
     if (newSkill.trim()) {
       setFormData(prev => prev ? { ...prev, skills: [...prev.skills, newSkill.trim()] } : null);
@@ -358,7 +438,7 @@ export default function Dashboard() {
         ...prev,
         projects: [
           ...prev.projects,
-          { id: Date.now().toString(), title: 'New Project', description: 'Description', link: '', imageUrl: '' }
+          { id: Date.now().toString(), title: 'New Project', description: 'Description', link: '', imageUrl: '', tags: [], itemCount: '', ctaLabel: 'View Project' }
         ]
       };
     });
@@ -775,6 +855,14 @@ export default function Dashboard() {
                     <input value={formData.ui.sectionTitles.skills} onChange={(e) => handleSectionTitleChange('skills', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Education Heading</label>
+                    <input value={formData.ui.sectionTitles.education} onChange={(e) => handleSectionTitleChange('education', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                  </div>
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Trainings Heading</label>
+                    <input value={formData.ui.sectionTitles.trainings} onChange={(e) => handleSectionTitleChange('trainings', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                  </div>
+                  <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Projects Heading</label>
                     <input value={formData.ui.sectionTitles.projects} onChange={(e) => handleSectionTitleChange('projects', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
@@ -932,7 +1020,104 @@ export default function Dashboard() {
               </div>
             </details>
 
-            {/* 6. Key Expertise Tags */}
+            {/* 6. Education */}
+            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+              <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="material-symbols-outlined text-secondary" data-icon="school">school</span>
+                  <h3 className="font-headline font-bold text-lg text-primary">Education</h3>
+                </div>
+                <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
+              </summary>
+              <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
+                <div className="mt-6 space-y-4">
+                  {formData.education.map((entry) => (
+                    <div key={entry.id} className="bg-surface-container-low p-4 rounded-lg flex gap-4">
+                      <div className="flex-1 space-y-2">
+                        <input value={entry.program} onChange={(e) => handleEducationChange(entry.id, 'program', e.target.value)} className="w-full bg-white border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Program" />
+                        <div className="flex gap-2">
+                          <input value={entry.school} onChange={(e) => handleEducationChange(entry.id, 'school', e.target.value)} className="flex-1 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="School" />
+                          <input value={entry.period} onChange={(e) => handleEducationChange(entry.id, 'period', e.target.value)} className="w-1/3 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Period" />
+                        </div>
+                        <textarea value={entry.details} onChange={(e) => handleEducationChange(entry.id, 'details', e.target.value)} className="w-full bg-white border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Details"></textarea>
+                      </div>
+                      <div className="flex flex-col justify-between items-center">
+                        <button onClick={() => handleRemoveEducation(entry.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={handleAddEducation} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
+                    + Add Education Item
+                  </button>
+                </div>
+              </div>
+            </details>
+
+            {/* 7. Trainings and Seminars */}
+            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+              <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
+                  <h3 className="font-headline font-bold text-lg text-primary">Trainings and Seminars</h3>
+                </div>
+                <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
+              </summary>
+              <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
+                <div className="mt-6 space-y-4">
+                  {formData.trainings.map((entry) => (
+                    <div key={entry.id} className="bg-surface-container-low p-4 rounded-lg flex gap-4">
+                      <div className="flex-1 space-y-2">
+                        <input value={entry.title} onChange={(e) => handleTrainingChange(entry.id, 'title', e.target.value)} className="w-full bg-white border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Training Title" />
+                        <div className="flex gap-2">
+                          <input value={entry.provider} onChange={(e) => handleTrainingChange(entry.id, 'provider', e.target.value)} className="flex-1 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Provider" />
+                          <input value={entry.date} onChange={(e) => handleTrainingChange(entry.id, 'date', e.target.value)} className="w-1/3 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Date" />
+                        </div>
+                        <textarea value={entry.details} onChange={(e) => handleTrainingChange(entry.id, 'details', e.target.value)} className="w-full bg-white border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Details"></textarea>
+                      </div>
+                      <div className="flex flex-col justify-between items-center">
+                        <button onClick={() => handleRemoveTraining(entry.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={handleAddTraining} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
+                    + Add Training or Seminar
+                  </button>
+                </div>
+              </div>
+            </details>
+
+            {/* 8. Contact Details */}
+            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+              <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="material-symbols-outlined text-secondary" data-icon="contact_phone">contact_phone</span>
+                  <h3 className="font-headline font-bold text-lg text-primary">Contact Details</h3>
+                </div>
+                <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
+              </summary>
+              <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50 space-y-4">
+                <div className="mt-6">
+                  <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Intro</label>
+                  <textarea value={formData.contact.intro} onChange={(e) => handleContactChange('intro', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-4 text-sm text-on-surface-variant focus:ring-2 focus:ring-secondary/20" rows={3}></textarea>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Email</label>
+                    <input value={formData.contact.email} onChange={(e) => handleContactChange('email', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary focus:ring-2 focus:ring-secondary/20" type="text" />
+                  </div>
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Phone</label>
+                    <input value={formData.contact.phone} onChange={(e) => handleContactChange('phone', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary focus:ring-2 focus:ring-secondary/20" type="text" />
+                  </div>
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Location</label>
+                    <input value={formData.contact.location} onChange={(e) => handleContactChange('location', e.target.value)} className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary focus:ring-2 focus:ring-secondary/20" type="text" />
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            {/* 9. Key Expertise Tags */}
             <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
@@ -1078,6 +1263,23 @@ export default function Dashboard() {
                         <input className="w-full bg-surface-container-low border-none rounded p-2 font-bold text-sm text-primary" type="text" value={project.title} onChange={(e) => handleProjectChange(project.id, 'title', e.target.value)} placeholder="Project Title" />
                         <textarea className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-on-surface-variant" rows={2} value={project.description} onChange={(e) => handleProjectChange(project.id, 'description', e.target.value)} placeholder="Project Description"></textarea>
                         <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.link} onChange={(e) => handleProjectChange(project.id, 'link', e.target.value)} placeholder="Project Link (URL)" />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.itemCount || ''} onChange={(e) => handleProjectChange(project.id, 'itemCount', e.target.value)} placeholder="Metric (e.g. 12 SOPs)" />
+                          <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.ctaLabel || ''} onChange={(e) => handleProjectChange(project.id, 'ctaLabel', e.target.value)} placeholder="CTA Label" />
+                        </div>
+                        <input
+                          className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary"
+                          type="text"
+                          value={(project.tags || []).join(', ')}
+                          onChange={(e) => {
+                            const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+                            setFormData(prev => prev ? {
+                              ...prev,
+                              projects: prev.projects.map(p => p.id === project.id ? { ...p, tags } : p)
+                            } : null);
+                          }}
+                          placeholder="Tags (comma separated)"
+                        />
                       </div>
                       <div className="flex flex-col justify-between">
                         <button onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()} className="text-secondary hover:text-primary"><span className="material-symbols-outlined" data-icon="upload">upload</span></button>
@@ -1112,6 +1314,14 @@ export default function Dashboard() {
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
                       <span className="text-xs text-white/70 font-medium">Total Projects</span>
                       <span className="font-headline font-bold text-lg">{formData.projects?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <span className="text-xs text-white/70 font-medium">Education Items</span>
+                      <span className="font-headline font-bold text-lg">{formData.education.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <span className="text-xs text-white/70 font-medium">Trainings</span>
+                      <span className="font-headline font-bold text-lg">{formData.trainings.length}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-white/70 font-medium">Total Skills</span>
