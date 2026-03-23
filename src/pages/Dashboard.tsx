@@ -5,6 +5,7 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../firebase';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
+import { IconPicker } from '../components/IconPicker';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -205,6 +206,73 @@ export default function Dashboard() {
     });
   };
   
+  
+  const handleAddProject = () => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        projects: [
+          ...prev.projects,
+          { id: Date.now().toString(), title: 'New Project', description: 'Description', link: '', imageUrl: '' }
+        ]
+      };
+    });
+  };
+
+  const handleRemoveProject = (id: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        projects: prev.projects.filter(p => p.id !== id)
+      };
+    });
+  };
+
+  const handleProjectChange = (id: string, field: string, value: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        projects: prev.projects.map(p => p.id === id ? { ...p, [field]: value } : p)
+      };
+    });
+  };
+
+  const handleAddExpertiseCard = () => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        expertiseCards: [
+          ...prev.expertiseCards,
+          { id: Date.now().toString(), title: 'New Area', description: 'Description', icon: 'lightbulb' }
+        ]
+      };
+    });
+  };
+
+  const handleRemoveExpertiseCard = (id: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        expertiseCards: prev.expertiseCards.filter(c => c.id !== id)
+      };
+    });
+  };
+
+  const handleExpertiseCardChange = (id: string, field: string, value: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        expertiseCards: prev.expertiseCards.map(c => c.id === id ? { ...c, [field]: value } : c)
+      };
+    });
+  };
+
   const updateBioParagraph = (index: number, text: string) => {
       setFormData(prev => {
           if (!prev) return null;
@@ -540,6 +608,7 @@ export default function Dashboard() {
               </div>
             </details>
 
+            
             {/* 7. Certifications */}
             <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
@@ -556,18 +625,39 @@ export default function Dashboard() {
                         <button onClick={() => handleRemoveCertification(cert.id)} className="absolute top-4 right-4 text-secondary hover:text-error">
                           <span className="material-symbols-outlined" data-icon="delete">delete</span>
                         </button>
-                        <div className="grid grid-cols-1 gap-4 pr-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-8">
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certification Name</label>
-                            <input value={cert.title} onChange={(e) => {
-                                setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, title: e.target.value} : c)} : null)
-                            }} className="w-full bg-white border-none rounded p-3 text-sm text-primary" type="text" />
+                            <input value={cert.title} onChange={(e) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, title: e.target.value} : c)} : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary" type="text" />
                           </div>
                           <div>
-                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Issuer</label>
-                            <input value={cert.issuer} onChange={(e) => {
-                                setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, issuer: e.target.value} : c)} : null)
-                            }} className="w-full bg-white border-none rounded p-3 text-sm text-primary" type="text" />
+                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Background Color Theme</label>
+                            <select value={cert.bgColor || ''} onChange={(e) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, bgColor: e.target.value} : c)} : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary">
+                              <option value="bg-tertiary-container text-primary-fixed">Soft Gold &amp; Brown</option>
+                              <option value="bg-surface-container-highest text-primary">Slate &amp; Dark</option>
+                              <option value="bg-secondary-container text-on-secondary-container">Warm Mocha</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Icon Picker</label>
+                            <div className="flex items-center gap-3 bg-white p-2 rounded relative">
+                              <div className="flex-1">
+                                <IconPicker value={cert.iconName || 'verified'} onChange={(val) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, iconName: val} : c)} : null)} label="Choose Icon" className="w-full" />
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certificate Image Upload</label>
+                            <div className="flex items-center justify-between bg-white p-2 rounded">
+                              <span className="text-[10px] text-primary truncate px-2">{cert.imageUrl ? 'Certificate Uploaded' : 'No Image'}</span>
+                              <input type="file" accept="image/*" className="hidden" id={`cert-img-upload-${cert.id}`} onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(file, 'certificates', (url) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, imageUrl: url} : c)} : null));
+                              }} />
+                              <button onClick={() => document.getElementById(`cert-img-upload-${cert.id}`)?.click()} className="text-[10px] font-bold text-secondary underline">{cert.imageUrl ? 'Replace' : 'Upload'}</button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -578,7 +668,83 @@ export default function Dashboard() {
                 </div>
               </div>
             </details>
+
+            {/* 8. Expertise Cards */}
+            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+              <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="material-symbols-outlined text-secondary" data-icon="grid_view">grid_view</span>
+                  <h3 className="font-headline font-bold text-lg text-primary">Expertise Cards</h3>
+                </div>
+                <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
+              </summary>
+              <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
+                <div className="mt-6 space-y-4">
+                  {formData.expertiseCards && formData.expertiseCards.map((card) => (
+                    <div key={card.id} className="bg-surface-container-low p-4 rounded-lg flex items-start gap-4">
+                      <div className="w-12 h-12 bg-white rounded flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-primary" data-icon={card.icon}>{card.icon}</span>
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input type="text" className="w-full bg-white border-none rounded p-2 text-sm font-bold text-primary" value={card.title} onChange={(e) => handleExpertiseCardChange(card.id, 'title', e.target.value)} placeholder="Card Title" />
+                        <textarea className="w-full bg-white border-none rounded p-2 text-xs text-secondary" rows={2} value={card.description} onChange={(e) => handleExpertiseCardChange(card.id, 'description', e.target.value)} placeholder="Description"></textarea>
+                        <div className="w-full relative"><IconPicker value={card.icon} onChange={(val) => handleExpertiseCardChange(card.id, 'icon', val)} label="Change Icon" /></div>
+                      </div>
+                      <button onClick={() => handleRemoveExpertiseCard(card.id)} className="text-secondary hover:text-error mt-2"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
+                    </div>
+                  ))}
+                  <button onClick={handleAddExpertiseCard} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
+                    + Add Expertise Card
+                  </button>
+                </div>
+              </div>
+            </details>
+
+            {/* 9. Featured Projects */}
+            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+              <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="material-symbols-outlined text-secondary" data-icon="folder_special">folder_special</span>
+                  <h3 className="font-headline font-bold text-lg text-primary">Featured Projects</h3>
+                </div>
+                <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
+              </summary>
+              <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
+                <div className="mt-6 space-y-6">
+                  {formData.projects && formData.projects.map((project) => (
+                    <div key={project.id} className="bg-white border border-outline-variant/20 p-4 rounded-xl flex gap-4">
+                      <div className="w-24 h-24 bg-surface-container-low rounded-lg overflow-hidden border border-outline-variant/10 relative group">
+                        {project.imageUrl ? (
+                          <img src={project.imageUrl} className="w-full h-full object-cover" alt="Project" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-outline-variant">
+                            <span className="material-symbols-outlined" data-icon="image">image</span>
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" className="hidden" id={`proj-img-${project.id}`} onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, 'projects', (url) => handleProjectChange(project.id, 'imageUrl', url));
+                        }} />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input className="w-full bg-surface-container-low border-none rounded p-2 font-bold text-sm text-primary" type="text" value={project.title} onChange={(e) => handleProjectChange(project.id, 'title', e.target.value)} placeholder="Project Title" />
+                        <textarea className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-on-surface-variant" rows={2} value={project.description} onChange={(e) => handleProjectChange(project.id, 'description', e.target.value)} placeholder="Project Description"></textarea>
+                        <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.link} onChange={(e) => handleProjectChange(project.id, 'link', e.target.value)} placeholder="Project Link (URL)" />
+                      </div>
+                      <div className="flex flex-col justify-between">
+                        <button onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()} className="text-secondary hover:text-primary"><span className="material-symbols-outlined" data-icon="upload">upload</span></button>
+                        <button onClick={() => handleRemoveProject(project.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={handleAddProject} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
+                    + Add New Project
+                  </button>
+                </div>
+              </div>
+            </details>
           </div>
+
 
           {/* Right Column: Quick Reference Panel */}
           <div className="col-span-12 lg:col-span-4">
@@ -597,7 +763,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
                       <span className="text-xs text-white/70 font-medium">Total Projects</span>
-                      <span className="font-headline font-bold text-lg">0</span>
+                      <span className="font-headline font-bold text-lg">{formData.projects?.length || 0}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-white/70 font-medium">Total Skills</span>
