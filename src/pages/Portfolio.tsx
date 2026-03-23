@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef, type MouseEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { sileo } from 'sileo';
 import { auth, db, storage } from '../firebase';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
-import { uploadToLocal } from '../utils/localUpload';
+import { uploadToCloudinary } from '../utils/localUpload';
 import { IconPicker } from '../components/IconPicker';
 
 const ANALYTICS_STATS_DOC = 'portfolio_stats';
@@ -23,6 +24,31 @@ const getReferrerSource = () => {
   return 'other';
 };
 
+function extractFilenameFromUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const rawName = parts[parts.length - 1] || 'portfolio.pdf';
+    return decodeURIComponent(rawName.includes('.') ? rawName : `${rawName}.pdf`);
+  } catch {
+    return 'portfolio.pdf';
+  }
+}
+
+function toRawDeliveryUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.includes('cloudinary.com')) {
+      return url;
+    }
+    parsed.pathname = parsed.pathname.replace('/image/upload/', '/raw/upload/');
+    parsed.pathname = parsed.pathname.replace('/auto/upload/', '/raw/upload/');
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 const EditModeContext = createContext(false);
 
 function InlineText({ value, onChange, className, multiline = false }: { value: string, onChange: (val: string) => void, className?: string, multiline?: boolean }) {
@@ -36,6 +62,7 @@ function InlineText({ value, onChange, className, multiline = false }: { value: 
 }
 
 export default function Portfolio() {
+  const location = useLocation();
   const { data, loading, updateData, readError } = usePortfolioData();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -44,6 +71,7 @@ export default function Portfolio() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const isAdminPreview = new URLSearchParams(location.search).get('adminPreview') === '1';
 
   
   // ANALYTICS TRACKING
@@ -145,7 +173,7 @@ export default function Portfolio() {
     setUploadProgress(prev => ({ ...prev, [key]: 0 }));
 
     try {
-      const url = await uploadToLocal(file, path, (progress) => {
+      const url = await uploadToCloudinary(file, path, (progress) => {
         setUploadProgress(prev => ({ ...prev, [key]: progress }));
       });
       onComplete(url);
@@ -205,17 +233,17 @@ export default function Portfolio() {
     }
   };
 
-  const showExperienceSection = isEditMode || data.experience.length > 0;
-  const showSkillsSection = isEditMode || data.expertiseCards.length > 0 || data.skills.length > 0;
-  const showEducationSection = isEditMode || data.education.length > 0;
-  const showTrainingsSection = isEditMode || data.trainings.length > 0;
-  const showCertificationsSection = isEditMode || data.certifications.length > 0;
-  const showProjectsSection = isEditMode || data.projects.length > 0;
+  const showExperienceSection = isEditMode || (data?.experience?.length || 0) > 0;
+  const showSkillsSection = isEditMode || (data?.expertiseCards?.length || 0) > 0 || (data?.skills?.length || 0) > 0;
+  const showEducationSection = isEditMode || (data?.education?.length || 0) > 0;
+  const showTrainingsSection = isEditMode || (data?.trainings?.length || 0) > 0;
+  const showCertificationsSection = isEditMode || (data?.certifications?.length || 0) > 0;
+  const showProjectsSection = isEditMode || (data?.projects?.length || 0) > 0;
   const showContactSection =
     isEditMode ||
-    Boolean(data.contact.intro || data.contact.email || data.contact.phone || data.contact.location);
+    Boolean(data?.contact?.intro || data?.contact?.email || data?.contact?.phone || data?.contact?.location);
 
-  const visibleNavLinks = data.ui.navLinks.filter((item) => {
+  const visibleNavLinks = (data?.ui?.navLinks || []).filter((item) => {
     if (item.id === 'experience') return showExperienceSection;
     if (item.id === 'skills') return showSkillsSection;
     if (item.id === 'education') return showEducationSection;
@@ -227,6 +255,55 @@ export default function Portfolio() {
 
   const primaryNavLinks = visibleNavLinks.slice(0, 5);
   const overflowNavLinks = visibleNavLinks.slice(5);
+
+  const handlePortfolioDownload = async () => {
+    if (!data?.portfolioPdfUrl) {
+      alert('Portfolio PDF has not been uploaded yet.');
+      return;
+    }
+
+    await trackDownload();
+    const sourceUrl = data.portfolioPdfUrl;
+    const candidateUrls = [sourceUrl, toRawDeliveryUrl(sourceUrl)].filter((url, idx, arr) => arr.indexOf(url) === idx);
+
+    try {
+      let blob: Blob | null = null;
+      let lastStatus = 0;
+      for (const candidateUrl of candidateUrls) {
+        const response = await fetch(candidateUrl);
+        lastStatus = response.status;
+        if (response.ok) {
+          blob = await response.blob();
+          break;
+        }
+      }
+
+      if (!blob) {
+        throw new Error(`Download request failed with status ${lastStatus}`);
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = extractFilenameFromUrl(sourceUrl);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      sileo.info({
+        title: 'Download started',
+        description: 'Your portfolio PDF is being downloaded.'
+      });
+    } catch (error) {
+      console.error('Portfolio download failed:', error);
+      const message = error instanceof Error ? error.message : 'Unknown download error';
+      sileo.warning({
+        title: 'PDF delivery blocked',
+        description: `${message}. Check Cloudinary asset access control and allow delivery for PDFs, then re-upload the file.`
+      });
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => {
@@ -291,12 +368,25 @@ export default function Portfolio() {
     return <div className="min-h-screen flex items-center justify-center bg-surface text-primary">Loading...</div>;
   }
 
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface text-primary px-6 text-center">
+        <div>
+          <h1 className="font-headline text-2xl font-bold mb-3">Portfolio data unavailable</h1>
+          <p className="text-sm text-on-surface-variant">
+            {readError || 'No Firestore portfolio document found at portfolio/main.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <EditModeContext.Provider value={isEditMode}>
     <div className="font-body selection:bg-secondary-container selection:text-on-secondary-container relative overflow-x-hidden">
       {readError && (
         <div className="fixed top-0 inset-x-0 z-[60] bg-error-container text-on-error-container px-4 py-2 text-xs text-center">
-          Live content could not be loaded from Firestore. Showing fallback preview data.
+          Live content could not be loaded from Firestore.
         </div>
       )}
       {isAdmin && (
@@ -430,9 +520,24 @@ export default function Portfolio() {
             </div>
           </details>
         </div>
-        <Link to="/login" className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform">
-          Login
-        </Link>
+        {isAdmin && isAdminPreview ? (
+          <button
+            type="button"
+            onClick={() => {
+              sileo.info({
+                title: 'Already logged in',
+                description: 'You are in admin preview mode. Return to Dashboard to continue editing or logout.'
+              });
+            }}
+            className="bg-primary/70 text-on-primary px-6 py-2 rounded-lg font-label font-bold transition-transform cursor-not-allowed"
+          >
+            Login
+          </button>
+        ) : (
+          <Link to="/login" className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform">
+            Login
+          </Link>
+        )}
       </motion.nav>
 
       <motion.button
@@ -468,23 +573,13 @@ export default function Portfolio() {
             </motion.div>
             <motion.div variants={fadeUp} className="flex flex-wrap gap-3 md:gap-4">
               <a className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-secondary transition-colors duration-300 shadow-lg shadow-primary/10" href="#contact">Contact Me</a>
-              <a 
+              <button
+                type="button"
                 className="bg-surface-container-highest text-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300" 
-                href={data.portfolioPdfUrl || "#"} 
-                target={data.portfolioPdfUrl ? "_blank" : "_self"} 
-                rel="noopener noreferrer" 
-                download={!!data.portfolioPdfUrl}
-                onClick={(e) => {
-                  if (!data.portfolioPdfUrl) {
-                    e.preventDefault();
-                    alert("Portfolio PDF has not been uploaded yet.");
-                    return;
-                  }
-                  trackDownload();
-                }}
+                onClick={handlePortfolioDownload}
               >
                 Download Portfolio
-              </a>
+              </button>
             </motion.div>
           </motion.div>
           <motion.div 

@@ -89,7 +89,7 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="fixed top-0 left-0 w-full z-50 py-6 px-8 flex justify-between items-center glass-header"
       >
-        <Link to="/" className="text-xl font-headline font-black tracking-tight text-primary">Virtual Curator</Link>
+        <Link to="/" className="text-xl font-headline font-black tracking-tight text-primary">KDL.</Link>
         <Link to="/" className="text-sm font-label font-medium text-secondary hover:text-primary transition-colors duration-300 flex items-center gap-2">
           <span className="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span>
           Back to Portfolio
@@ -121,7 +121,7 @@ export default function Login() {
             </div>
             {/* Footer style pattern inside branding */}
             <div className="mt-12 pt-8 border-t border-white/10 relative z-10">
-              <p className="text-[10px] text-on-primary-container/60 font-label tracking-wider uppercase">© {currentYear} Virtual Curator</p>
+              <p className="text-[10px] text-on-primary-container/60 font-label tracking-wider uppercase">© {currentYear} KDL Works</p>
             </div>
           </div>
 
@@ -223,8 +223,8 @@ export default function Login() {
 
       {/* Footer */}
       <footer className="w-full py-8 px-8 mt-auto flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto border-t border-outline-variant/10">
-        <div className="font-headline font-bold text-primary">Virtual Curator</div>
-        <div className="text-[11px] font-label text-secondary-fixed-variant opacity-60 tracking-wider">© {currentYear} KATRINA'S PORTFOLIO. ALL RIGHTS RESERVED.</div>
+        <div className="font-headline font-bold text-primary">KDL Works</div>
+        <div className="text-[11px] font-label text-secondary-fixed-variant opacity-60 tracking-wider">© {currentYear} KDL Works. ALL RIGHTS RESERVED.</div>
       </footer>
     </div>
   );

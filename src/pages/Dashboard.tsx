@@ -2,16 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { sileo } from 'sileo';
-import { auth, storage, db } from '../firebase';
+import { auth, db } from '../firebase';
 import { doc, getDoc, collection, getDocs, orderBy, query, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
 import { IconPicker } from '../components/IconPicker';
+import { uploadToCloudinary } from '../utils/localUpload';
 
-const BRAND_NAME = 'Virtual Curator';
-const LEGAL_ENTITY = 'Katdworks Creative Technology';
-const SUPPORT_EMAIL = 'support@katdworks.com';
+const BRAND_NAME = 'KDL Works';
+const LEGAL_ENTITY = 'KatD Works';
+const SUPPORT_EMAIL = 'katdworks@gmail.com';
 const SUPPORT_HOURS = 'Monday-Friday, 9:00 AM - 6:00 PM (UTC+8)';
 const POLICY_EFFECTIVE_DATE = '2026-03-23';
 const POLICY_VERSION = 'v1.0';
@@ -21,7 +21,7 @@ export default function Dashboard() {
   const currentYear = new Date().getFullYear();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const { data, loading: dataLoading, updateData } = usePortfolioData();
+  const { data, loading: dataLoading, updateData, readError } = usePortfolioData();
   
   // Local state for editing
   const [formData, setFormData] = useState<PortfolioData | null>(null);
@@ -46,43 +46,58 @@ export default function Dashboard() {
   const [supportPriority, setSupportPriority] = useState<'high' | 'urgent'>('high');
   const [supportConsent, setSupportConsent] = useState(false);
   const [supportSubmitting, setSupportSubmitting] = useState(false);
+  const [showMissingDocState, setShowMissingDocState] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const lastEditToastAtRef = useRef(0);
+  const uploadMilestonesRef = useRef<Record<string, number[]>>({});
 
-  const handleFileUpload = async (file: File, path: string, onComplete: (url: string) => void) => {
+  const handleFileUpload = async (file: File, path: string, onComplete: (url: string) => void, progressKey?: string) => {
     if (!file) return;
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const key = progressKey || path;
+    sileo.info({
+      title: 'Upload started',
+      description: `Uploading ${file.name} to ${path}...`
+    });
+    uploadMilestonesRef.current[key] = [];
+    setUploadProgress(prev => ({ ...prev, [key]: 0 }));
 
-    setUploadProgress(prev => ({ ...prev, [path]: 0 }));
-
-    uploadTask.on('state_changed', 
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(prev => ({ ...prev, [path]: progress }));
-      }, 
-      (error) => {
-        console.error("Upload error:", error);
-        sileo.warning({
-          title: 'Upload failed',
-          description: 'Please retry the upload. If this persists, check your connection and file type.'
-        });
-        setUploadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[path];
-          return newProgress;
-        });
-      }, 
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        onComplete(downloadURL);
-        setUploadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[path];
-          return newProgress;
-        });
-      }
-    );
+    try {
+      const url = await uploadToCloudinary(file, path, (progress) => {
+        const milestones = uploadMilestonesRef.current[key] || [];
+        const marks = [25, 50, 75];
+        for (const mark of marks) {
+          if (progress >= mark && !milestones.includes(mark)) {
+            milestones.push(mark);
+            sileo.info({
+              title: 'Upload in progress',
+              description: `${file.name}: ${mark}% uploaded`
+            });
+          }
+        }
+        uploadMilestonesRef.current[key] = milestones;
+        setUploadProgress(prev => ({ ...prev, [key]: progress }));
+      });
+      onComplete(url);
+      sileo.info({
+        title: 'Upload completed',
+        description: `${file.name} uploaded successfully to ${path}.`
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown upload error';
+      sileo.warning({
+        title: 'Upload failed',
+        description: `${file.name} failed to upload. ${message}`
+      });
+    } finally {
+      delete uploadMilestonesRef.current[key];
+      setUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[key];
+        return newProgress;
+      });
+    }
   };
 
   useEffect(() => {
@@ -90,14 +105,32 @@ export default function Dashboard() {
     const hasChanges = JSON.stringify(formData) !== JSON.stringify(data);
     if (!hasChanges) return;
 
+    const now = Date.now();
+    if (now - lastEditToastAtRef.current > 1800) {
+      sileo.info({
+        title: 'Draft changed',
+        description: 'Change detected. Auto-save will sync to Firestore shortly.'
+      });
+      lastEditToastAtRef.current = now;
+    }
+
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
         await updateData(formData);
         setSaveMessage('Auto-saved');
+        sileo.info({
+          title: 'Auto-saved',
+          description: `Dashboard changes synced at ${new Date().toLocaleTimeString()}.`
+        });
         setTimeout(() => setSaveMessage(''), 2000);
       } catch (error) {
         setSaveMessage('Error saving');
+        const message = error instanceof Error ? error.message : 'Unknown save error';
+        sileo.warning({
+          title: 'Auto-save failed',
+          description: `Could not sync dashboard changes. ${message}`
+        });
       } finally {
         setIsSaving(false);
       }
@@ -123,6 +156,27 @@ export default function Dashboard() {
       setFormData(data);
     }
   }, [data, formData]);
+
+  useEffect(() => {
+    if (authLoading || dataLoading || formData) {
+      setShowMissingDocState(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowMissingDocState(true);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [authLoading, dataLoading, formData, readError]);
+
+  useEffect(() => {
+    if (!readError) return;
+    sileo.warning({
+      title: 'Firestore read issue',
+      description: `Dashboard could not fully load live data. ${readError}`
+    });
+  }, [readError]);
 
   const handleSignOut = async () => {
     try {
@@ -150,15 +204,16 @@ export default function Dashboard() {
       setSaveMessage('Changes published successfully!');
       sileo.info({
         title: 'Changes published',
-        description: 'Your portfolio content has been updated.',
+        description: `Portfolio content published to Firestore at ${new Date().toLocaleTimeString()}.`,
         duration: 2200
       });
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
       setSaveMessage('Error saving changes.');
+      const message = error instanceof Error ? error.message : 'Unknown publish error';
       sileo.warning({
         title: 'Publish failed',
-        description: 'Unable to save changes right now. Please retry.'
+        description: `Unable to save changes right now. ${message}`
       });
     } finally {
       setIsSaving(false);
@@ -520,10 +575,34 @@ export default function Dashboard() {
       })
   }
 
-  if (authLoading || dataLoading || !formData) {
+  if (authLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!formData && !showMissingDocState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface px-6 text-center">
+        <div>
+          <div className="w-12 h-12 mx-auto border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-sm text-secondary">Syncing portfolio document...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!formData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface px-6 text-center">
+        <div>
+          <h1 className="font-headline text-2xl font-bold text-primary mb-3">Portfolio document not found</h1>
+          <p className="text-sm text-secondary">
+            {readError || 'Create the Firestore document at portfolio/main before editing in the dashboard.'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -553,7 +632,7 @@ export default function Dashboard() {
         className="bg-surface-container border-r border-outline-variant/10 flex flex-col h-screen sticky top-0 p-8 overflow-y-auto"
       >
         <div className="mb-12">
-          <h1 className="font-headline font-black text-2xl text-primary tracking-tighter">Virtual Curator</h1>
+          <h1 className="font-headline font-black text-2xl text-primary tracking-tighter">KDL Works.</h1>
           <p className="font-body text-[10px] uppercase tracking-[0.2em] text-secondary mt-1">Admin Control Suite</p>
         </div>
         <nav className="flex-1 flex flex-col gap-2">
@@ -617,7 +696,7 @@ export default function Dashboard() {
                   </span>
               )}
               <div className="flex gap-4">
-                  <Link to="/" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-white flex items-center justify-center">
+                  <Link to="/?adminPreview=1" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-white flex items-center justify-center">
                   Preview Site
                   </Link>
                   <button disabled={isSaving} onClick={handleSave} title="Publish your latest content changes" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-xl shadow-primary/10 active:scale-95 transition-all flex items-center justify-center gap-2">
@@ -807,9 +886,17 @@ export default function Dashboard() {
                       ) : (
                          <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
                       )}
-                      <span className="text-xs text-secondary">{uploadProgress['logos'] ? `Uploading...` : (formData.ui.navLogoUrl ? 'Change Logo' : 'Upload Logo (.svg, .png)')}</span>
+                      <span className="text-xs text-secondary">
+                        {uploadProgress['navLogo'] !== undefined
+                          ? `Uploading... ${Math.round(uploadProgress['navLogo'])}%`
+                          : (formData.ui.navLogoUrl ? 'Change Logo' : 'Upload Logo (.svg, .png)')}
+                      </span>
                     </div>
-                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['navLogo'] = el} onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'logos', (url) => handleBrandingChange('navLogoUrl', url))} />
+                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['navLogo'] = el} onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'logos', (url) => handleBrandingChange('navLogoUrl', url), 'navLogo');
+                      e.currentTarget.value = '';
+                    }} />
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Footer Title</label>
@@ -823,9 +910,17 @@ export default function Dashboard() {
                       ) : (
                         <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
                       )}
-                      <span className="text-xs text-secondary">{uploadProgress['logos'] ? `Uploading...` : (formData.ui.footerLogoUrl ? 'Change Logo' : 'Upload Logo (.svg, .png)')}</span>
+                      <span className="text-xs text-secondary">
+                        {uploadProgress['footerLogo'] !== undefined
+                          ? `Uploading... ${Math.round(uploadProgress['footerLogo'])}%`
+                          : (formData.ui.footerLogoUrl ? 'Change Logo' : 'Upload Logo (.svg, .png)')}
+                      </span>
                     </div>
-                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['footerLogo'] = el} onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'logos', (url) => handleBrandingChange('footerLogoUrl', url))} />
+                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['footerLogo'] = el} onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'logos', (url) => handleBrandingChange('footerLogoUrl', url), 'footerLogo');
+                      e.currentTarget.value = '';
+                    }} />
                   </div>
                 </div>
               </div>
@@ -912,9 +1007,50 @@ export default function Dashboard() {
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Portfolio PDF</label>
                     <div className="flex items-center justify-between bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
-                      <span className="text-xs text-primary font-medium truncate w-4/5">{formData.portfolioPdfUrl ? "Linked PDF (Active)" : "No PDF Uploaded"}</span>
-                      <button onClick={() => fileInputRefs.current['portfolioPdf']?.click()} className="text-[10px] font-bold text-secondary hover:text-primary underline">Replace</button>
-                      <input type="file" accept=".pdf" className="hidden" ref={el => fileInputRefs.current['portfolioPdf'] = el} onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'pdfs', (url) => setFormData(prev => prev ? {...prev, portfolioPdfUrl: url} : null))} />
+                      <span className="text-xs text-primary font-medium truncate w-4/5">
+                        {uploadProgress['portfolioPdf'] !== undefined
+                          ? `Uploading PDF... ${Math.round(uploadProgress['portfolioPdf'])}%`
+                          : (formData.portfolioPdfUrl ? 'Linked PDF (Active)' : 'No PDF Uploaded')}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        {formData.portfolioPdfUrl && (
+                          <button
+                            onClick={() => {
+                              setFormData(prev => prev ? { ...prev, portfolioPdfUrl: '' } : null);
+                              sileo.info({
+                                title: 'Portfolio PDF removed',
+                                description: 'The linked PDF has been removed from this draft.'
+                              });
+                            }}
+                            className="text-[10px] font-bold text-error hover:opacity-80 underline"
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        )}
+                        <button
+                          onClick={() => fileInputRefs.current['portfolioPdf']?.click()}
+                          className="text-[10px] font-bold text-secondary hover:text-primary underline"
+                          type="button"
+                        >
+                          {uploadProgress['portfolioPdf'] !== undefined ? 'Uploading...' : (formData.portfolioPdfUrl ? 'Replace' : 'Upload')}
+                        </button>
+                      </div>
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        ref={el => fileInputRefs.current['portfolioPdf'] = el}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(file, 'pdfs', (url) => {
+                              setFormData(prev => prev ? { ...prev, portfolioPdfUrl: url } : null);
+                            }, 'portfolioPdf');
+                          }
+                          e.currentTarget.value = '';
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -940,9 +1076,17 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
-                        <button onClick={() => fileInputRefs.current['heroImage']?.click()} className="px-4 py-1.5 bg-primary text-on-primary text-[10px] font-bold rounded uppercase tracking-wider">{formData.hero.imageUrl ? 'Change' : 'Upload'}</button>
+                        <button onClick={() => fileInputRefs.current['heroImage']?.click()} className="px-4 py-1.5 bg-primary text-on-primary text-[10px] font-bold rounded uppercase tracking-wider">
+                          {uploadProgress['heroImage'] !== undefined
+                            ? `Uploading ${Math.round(uploadProgress['heroImage'])}%`
+                            : (formData.hero.imageUrl ? 'Change' : 'Upload')}
+                        </button>
                         <button onClick={() => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: ''}} : null)} className="px-4 py-1.5 bg-white border border-error/20 text-error text-[10px] font-bold rounded uppercase tracking-wider hover:bg-error/5">Delete</button>
-                        <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['heroImage'] = el} onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'images', (url) => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: url}} : null))} />
+                        <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['heroImage'] = el} onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, 'images', (url) => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: url}} : null), 'heroImage');
+                          e.currentTarget.value = '';
+                        }} />
                       </div>
                       <p className="text-[10px] text-secondary">Recommended: 1200x1500px high-contrast portrait.</p>
                     </div>
@@ -1184,12 +1328,19 @@ export default function Dashboard() {
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certificate Image Upload</label>
                             <div className="flex items-center justify-between bg-white p-2 rounded">
-                              <span className="text-[10px] text-primary truncate px-2">{cert.imageUrl ? 'Certificate Uploaded' : 'No Image'}</span>
+                              <span className="text-[10px] text-primary truncate px-2">
+                                {uploadProgress[`cert-${cert.id}`] !== undefined
+                                  ? `Uploading... ${Math.round(uploadProgress[`cert-${cert.id}`])}%`
+                                  : (cert.imageUrl ? 'Certificate Uploaded' : 'No Image')}
+                              </span>
                               <input type="file" accept="image/*" className="hidden" id={`cert-img-upload-${cert.id}`} onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) handleFileUpload(file, 'certificates', (url) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, imageUrl: url} : c)} : null));
+                                if (file) handleFileUpload(file, 'certificates', (url) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, imageUrl: url} : c)} : null), `cert-${cert.id}`);
+                                e.currentTarget.value = '';
                               }} />
-                              <button onClick={() => document.getElementById(`cert-img-upload-${cert.id}`)?.click()} className="text-[10px] font-bold text-secondary underline">{cert.imageUrl ? 'Replace' : 'Upload'}</button>
+                              <button onClick={() => document.getElementById(`cert-img-upload-${cert.id}`)?.click()} className="text-[10px] font-bold text-secondary underline">
+                                {uploadProgress[`cert-${cert.id}`] !== undefined ? 'Uploading...' : (cert.imageUrl ? 'Replace' : 'Upload')}
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1256,7 +1407,8 @@ export default function Dashboard() {
                         )}
                         <input type="file" accept="image/*" className="hidden" id={`proj-img-${project.id}`} onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handleFileUpload(file, 'projects', (url) => handleProjectChange(project.id, 'imageUrl', url));
+                          if (file) handleFileUpload(file, 'projects', (url) => handleProjectChange(project.id, 'imageUrl', url), `project-${project.id}`);
+                          e.currentTarget.value = '';
                         }} />
                       </div>
                       <div className="flex-1 space-y-2">
@@ -1282,7 +1434,7 @@ export default function Dashboard() {
                         />
                       </div>
                       <div className="flex flex-col justify-between">
-                        <button onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()} className="text-secondary hover:text-primary"><span className="material-symbols-outlined" data-icon="upload">upload</span></button>
+                        <button onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()} className="text-secondary hover:text-primary" title={uploadProgress[`project-${project.id}`] !== undefined ? `Uploading ${Math.round(uploadProgress[`project-${project.id}`])}%` : 'Upload image'}><span className="material-symbols-outlined" data-icon="upload">upload</span></button>
                         <button onClick={() => handleRemoveProject(project.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
                       </div>
                     </div>
@@ -1367,7 +1519,7 @@ export default function Dashboard() {
 
         {/* Footer Meta */}
         <footer className="mt-24 py-8 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center text-secondary">
-          <p className="font-body text-[10px] uppercase tracking-widest">© {currentYear} Virtual Curator. All rights reserved.</p>
+          <p className="font-body text-[10px] uppercase tracking-widest">© {currentYear} KDL Works. All rights reserved.</p>
           <div className="flex gap-8 mt-4 md:mt-0">
             <button type="button" onClick={() => setActiveModal('privacy')} className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors">Privacy Policy</button>
             <button type="button" onClick={() => setActiveModal('terms')} className="font-body text-[10px] uppercase tracking-widest hover:text-primary transition-colors">Terms of Service</button>

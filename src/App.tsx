@@ -8,6 +8,7 @@ import { Toaster } from 'sileo';
 import Portfolio from './pages/Portfolio';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/" element={<Portfolio />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </>
