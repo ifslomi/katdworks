@@ -1,4 +1,4 @@
-import { createCloudinaryUploadInit, type CloudinaryUploadRequestBody } from '../server/cloudinary.ts';
+import { createCloudinaryUploadInit, type CloudinaryUploadRequestBody } from './cloudinary.js';
 
 function sendJson(res: any, statusCode: number, payload: Record<string, unknown>) {
   res.statusCode = statusCode;
