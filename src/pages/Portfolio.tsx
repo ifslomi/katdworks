@@ -2,10 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
 import { uploadToLocal } from '../utils/localUpload';
 import { IconPicker } from '../components/IconPicker';
+
+const ANALYTICS_STATS_DOC = 'portfolio_stats';
+const ANALYTICS_COLLECTION = 'analytics';
+const ANALYTICS_DAILY_COLLECTION = 'analytics_daily';
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+const getReferrerSource = () => {
+  const ref = document.referrer.toLowerCase();
+  if (!ref) return 'direct';
+  if (ref.includes('linkedin')) return 'linkedin';
+  if (ref.includes('facebook')) return 'facebook';
+  return 'other';
+};
 
 export default function Portfolio() {
   const { data, loading, updateData, readError } = usePortfolioData();
@@ -14,6 +29,87 @@ export default function Portfolio() {
   const [isEditMode, setIsEditMode] = useState(false);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+
+  
+  // ANALYTICS TRACKING
+  useEffect(() => {
+    const ensureDocs = async () => {
+      const statsRef = doc(db, ANALYTICS_COLLECTION, ANALYTICS_STATS_DOC);
+      const dailyRef = doc(db, ANALYTICS_DAILY_COLLECTION, getTodayKey());
+      await setDoc(statsRef, {
+        views: 0,
+        totalViews: 0,
+        uniqueVisitors: 0,
+        downloads: 0,
+        bottomScrolls: 0,
+        referrers: { direct: 0, linkedin: 0, facebook: 0, other: 0 },
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      await setDoc(dailyRef, {
+        date: getTodayKey(),
+        views: 0,
+        downloads: 0,
+        bottomScrolls: 0,
+        referrers: { direct: 0, linkedin: 0, facebook: 0, other: 0 },
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      return { statsRef, dailyRef };
+    };
+
+    const trackView = async () => {
+      try {
+        const { statsRef, dailyRef } = await ensureDocs();
+        const source = getReferrerSource();
+        const visitorKey = 'katdworks_visitor_id';
+        const knownVisitor = localStorage.getItem(visitorKey);
+        if (!knownVisitor) {
+          localStorage.setItem(visitorKey, `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
+        }
+        const updates: Record<string, any> = {
+          views: increment(1),
+          totalViews: increment(1),
+          [`referrers.${source}`]: increment(1),
+          updatedAt: serverTimestamp()
+        };
+        if (!knownVisitor) {
+          updates.uniqueVisitors = increment(1);
+        }
+        await updateDoc(statsRef, updates);
+        await updateDoc(dailyRef, {
+          views: increment(1),
+          [`referrers.${source}`]: increment(1),
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) { }
+    };
+    trackView();
+
+    let scrolled = false;
+    const handleScroll = async () => {
+      if (scrolled) return;
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+        scrolled = true;
+        try {
+          const { statsRef, dailyRef } = await ensureDocs();
+          await updateDoc(statsRef, { bottomScrolls: increment(1), updatedAt: serverTimestamp() });
+          await updateDoc(dailyRef, { bottomScrolls: increment(1), updatedAt: serverTimestamp() });
+        } catch (e) {}
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const trackDownload = async () => {
+    try {
+      const statsRef = doc(db, ANALYTICS_COLLECTION, ANALYTICS_STATS_DOC);
+      const dailyRef = doc(db, ANALYTICS_DAILY_COLLECTION, getTodayKey());
+      await setDoc(statsRef, { downloads: 0, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(dailyRef, { date: getTodayKey(), downloads: 0, updatedAt: serverTimestamp() }, { merge: true });
+      await updateDoc(statsRef, { downloads: increment(1), updatedAt: serverTimestamp() });
+      await updateDoc(dailyRef, { downloads: increment(1), updatedAt: serverTimestamp() });
+    } catch (e) {}
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -293,7 +389,9 @@ export default function Portfolio() {
                   if (!data.portfolioPdfUrl) {
                     e.preventDefault();
                     alert("Portfolio PDF has not been uploaded yet.");
+                    return;
                   }
+                  trackDownload();
                 }}
               >
                 Download Portfolio

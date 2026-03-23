@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { auth, storage } from '../firebase';
+import { auth, storage, db } from '../firebase';
+import { doc, getDoc, collection, getDocs, orderBy, query, limit } from 'firebase/firestore';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
 import { IconPicker } from '../components/IconPicker';
 
@@ -18,6 +19,17 @@ export default function Dashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [newSkill, setNewSkill] = useState('');
+  const [activeTab, setActiveTab] = useState<'editor'|'analytics'>('editor');
+  const [stats, setStats] = useState<any>({
+    views: 0,
+    totalViews: 0,
+    uniqueVisitors: 0,
+    downloads: 0,
+    bottomScrolls: 0,
+    referrers: { direct: 0, linkedin: 0, facebook: 0, other: 0 }
+  });
+  const [dailyStats, setDailyStats] = useState<Array<{ date: string; views: number; downloads: number; bottomScrolls: number }>>([]);
+  const [analyticsRange, setAnalyticsRange] = useState<7 | 30 | 90>(30);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
@@ -169,6 +181,35 @@ export default function Dashboard() {
     setFormData(prev => prev ? { ...prev, skills: prev.skills.filter(s => s !== skillToRemove) } : null);
   };
 
+  
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const statsRef = doc(db, 'analytics', 'portfolio_stats');
+        const snap = await getDoc(statsRef);
+        if (snap.exists()) {
+          setStats(snap.data() as any);
+        }
+        const dailyQuery = query(collection(db, 'analytics_daily'), orderBy('date', 'desc'), limit(90));
+        const dailySnap = await getDocs(dailyQuery);
+        const mapped = dailySnap.docs.map((entry) => {
+          const day = entry.data() as any;
+          return {
+            date: day.date || entry.id,
+            views: day.views || 0,
+            downloads: day.downloads || 0,
+            bottomScrolls: day.bottomScrolls || 0,
+            referrers: day.referrers || { direct: 0, linkedin: 0, facebook: 0, other: 0 }
+          };
+        }).reverse();
+        setDailyStats(mapped);
+      } catch(err) {}
+    };
+    if (activeTab === 'analytics') {
+      fetchStats();
+    }
+  }, [activeTab]);
+
   const handleBrandingChange = (field: string, value: string) => {
     setFormData(prev => prev ? {
       ...prev,
@@ -304,6 +345,21 @@ export default function Dashboard() {
     );
   }
 
+  const selectedDailyStats = dailyStats.slice(-analyticsRange);
+  const rangeViews = selectedDailyStats.reduce((sum, day) => sum + (day.views || 0), 0);
+  const rangeDownloads = selectedDailyStats.reduce((sum, day) => sum + (day.downloads || 0), 0);
+  const rangeBottomScrolls = selectedDailyStats.reduce((sum, day) => sum + (day.bottomScrolls || 0), 0);
+  const rangeReferrers = selectedDailyStats.reduce(
+    (acc, day: any) => {
+      acc.direct += day?.referrers?.direct || 0;
+      acc.linkedin += day?.referrers?.linkedin || 0;
+      acc.facebook += day?.referrers?.facebook || 0;
+      acc.other += day?.referrers?.other || 0;
+      return acc;
+    },
+    { direct: 0, linkedin: 0, facebook: 0, other: 0 }
+  );
+
   return (
     <div className="editorial-grid min-h-screen">
       {/* Sidebar Navigation */}
@@ -313,18 +369,15 @@ export default function Dashboard() {
           <p className="font-body text-[10px] uppercase tracking-[0.2em] text-secondary mt-1">Admin Control Suite</p>
         </div>
         <nav className="flex-1 flex flex-col gap-2">
-          <Link className="flex items-center gap-4 p-3 bg-primary text-on-primary rounded-lg transition-all duration-300" to="#">
+          <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('editor'); }} className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${activeTab === 'editor' ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-surface-container-high'}`}>
             <span className="material-symbols-outlined" data-icon="edit_note">edit_note</span>
             <span className="font-body font-semibold text-sm">Content Editor</span>
-          </Link>
-          <Link className="flex items-center gap-4 p-3 text-secondary hover:bg-surface-container-high rounded-lg transition-all duration-300" to="#">
+          </a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); }} className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${activeTab === 'analytics' ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-surface-container-high'}`}>
             <span className="material-symbols-outlined" data-icon="analytics">analytics</span>
             <span className="font-body font-medium text-sm">Analytics</span>
-          </Link>
-          <Link className="flex items-center gap-4 p-3 text-secondary hover:bg-surface-container-high rounded-lg transition-all duration-300" to="#">
-            <span className="material-symbols-outlined" data-icon="settings">settings</span>
-            <span className="font-body font-medium text-sm">Settings</span>
-          </Link>
+          </a>
+          
         </nav>
         <div className="mt-auto pt-8 border-t border-outline-variant/20">
           <div className="flex flex-col gap-4">
@@ -350,27 +403,180 @@ export default function Dashboard() {
         {/* Header Section */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-16">
           <div>
-            <h2 className="font-headline text-4xl md:text-5xl font-black text-primary -ml-1 tracking-tight">Content Editor</h2>
-            <p className="font-body text-secondary mt-2 max-w-md">Update your digital atelier's presence. Every change reflects your professional standard.</p>
+            <h2 className="font-headline text-4xl md:text-5xl font-black text-primary -ml-1 tracking-tight">{activeTab === 'editor' ? 'Content Editor' : 'Analytics'}</h2>
+            <p className="font-body text-secondary mt-2 max-w-md">
+              {activeTab === 'editor'
+                ? "Update your digital atelier's presence. Every change reflects your professional standard."
+                : "Live behavioral analytics from your public portfolio traffic and interactions."}
+            </p>
           </div>
-          <div className="flex flex-col items-end gap-2 w-full md:w-auto">
-            {saveMessage && (
-                <span className={`text-sm font-medium ${saveMessage.includes('Error') ? 'text-error' : 'text-emerald-600'}`}>
-                  {saveMessage}
-                </span>
-            )}
-            <div className="flex gap-4">
-                <Link to="/" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-white flex items-center justify-center">
-                Preview Site
-                </Link>
-                <button disabled={isSaving} onClick={handleSave} className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-xl shadow-primary/10 active:scale-95 transition-all flex items-center justify-center gap-2">
-                {isSaving ? 'Saving...' : 'Publish Changes'}
-                </button>
+          {activeTab === 'editor' && (
+            <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+              {saveMessage && (
+                  <span className={`text-sm font-medium ${saveMessage.includes('Error') ? 'text-error' : 'text-emerald-600'}`}>
+                    {saveMessage}
+                  </span>
+              )}
+              <div className="flex gap-4">
+                  <Link to="/" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-white flex items-center justify-center">
+                  Preview Site
+                  </Link>
+                  <button disabled={isSaving} onClick={handleSave} className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-xl shadow-primary/10 active:scale-95 transition-all flex items-center justify-center gap-2">
+                  {isSaving ? 'Saving...' : 'Publish Changes'}
+                  </button>
+              </div>
             </div>
-          </div>
+          )}
         </header>
 
         <div className="grid grid-cols-12 gap-8">
+
+          {activeTab === 'analytics' && (
+            <div className="col-span-12 flex flex-col gap-8 w-full p-4 lg:p-10 max-w-7xl mx-auto">
+                <div className="flex justify-end">
+                  <div className="inline-flex rounded-lg bg-surface-container-high p-1 border border-outline-variant/20">
+                    {[7, 30, 90].map((range) => (
+                      <button
+                        key={range}
+                        onClick={() => setAnalyticsRange(range as 7 | 30 | 90)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${analyticsRange === range ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-surface-container-highest'}`}
+                      >
+                        {range}d
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="bg-surface-container p-6 rounded-lg relative overflow-hidden group border border-outline-variant/10 shadow-sm">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span className="material-symbols-outlined text-4xl">group</span>
+                        </div>
+                        <p className="text-secondary text-xs font-medium tracking-widest uppercase mb-2">Visits ({analyticsRange}d)</p>
+                        <div className="flex items-baseline gap-2">
+                          <h3 className="text-3xl font-headline font-bold text-on-surface">{rangeViews}</h3>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant mt-1 italic">Selected date range</p>
+                    </div>
+                    <div className="bg-surface-container p-6 rounded-lg relative overflow-hidden group border border-outline-variant/10 shadow-sm">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span className="material-symbols-outlined text-4xl">arrow_downward</span>
+                        </div>
+                        <p className="text-secondary text-xs font-medium tracking-widest uppercase mb-2">Unique Visitors</p>
+                        <div className="flex items-baseline gap-2">
+                          <h3 className="text-3xl font-headline font-bold text-on-surface">{stats?.uniqueVisitors || 0}</h3>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant mt-1 italic">Lifetime estimated unique browsers</p>
+                    </div>
+                    <div className="bg-surface-container p-6 rounded-lg relative overflow-hidden group border border-outline-variant/10 shadow-sm">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span className="material-symbols-outlined text-4xl">download_for_offline</span>
+                        </div>
+                        <p className="text-secondary text-xs font-medium tracking-widest uppercase mb-2">Downloads ({analyticsRange}d)</p>
+                        <div className="flex items-baseline gap-2">
+                          <h3 className="text-3xl font-headline font-bold text-on-surface">{rangeDownloads}</h3>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant mt-1 italic">Selected date range</p>
+                    </div>
+                    <div className="bg-surface-container p-6 rounded-lg relative overflow-hidden group border border-outline-variant/10 shadow-sm">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span className="material-symbols-outlined text-4xl">trending_up</span>
+                        </div>
+                      <p className="text-secondary text-xs font-medium tracking-widest uppercase mb-2">Scroll Depth ({analyticsRange}d)</p>
+                        <div className="flex items-baseline gap-2">
+                        <h3 className="text-3xl font-headline font-bold text-on-surface">{rangeViews ? Math.round((rangeBottomScrolls / rangeViews) * 100) : 0}%</h3>
+                        </div>
+                      <p className="text-[10px] text-secondary mt-1 italic">Reached page bottom</p>
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 bg-surface-container p-10 rounded-lg flex flex-col h-[450px] border border-outline-variant/10 shadow-sm">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h2 className="font-noto-serif text-2xl font-bold text-on-surface mb-1">Visitor Trends</h2>
+                                <p className="text-xs text-on-surface-variant uppercase tracking-widest">{analyticsRange}-Day Atmospheric Traffic</p>
+                            </div>
+                        </div>
+                        <div className="flex-1 relative mt-4">
+                            <div className="absolute inset-0 flex flex-col justify-between">
+                                <div className="w-full h-px bg-outline-variant/10"></div>
+                                <div className="w-full h-px bg-outline-variant/10"></div>
+                                <div className="w-full h-px bg-outline-variant/10"></div>
+                                <div className="w-full h-px bg-outline-variant/10"></div>
+                                <div className="w-full h-px bg-outline-variant/10"></div>
+                            </div>
+                            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                                {(() => {
+                                  const points = selectedDailyStats.length ? selectedDailyStats : [{ date: 'N/A', views: 0, downloads: 0, bottomScrolls: 0 }];
+                                  const maxViews = Math.max(...points.map((p) => p.views || 0), 1);
+                                  const maxDownloads = Math.max(...points.map((p) => p.downloads || 0), 1);
+                                  const width = 700;
+                                  const height = 220;
+                                  const step = points.length > 1 ? width / (points.length - 1) : width;
+                                  const viewsPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${Math.round(i * step)} ${Math.round(height - ((p.views || 0) / maxViews) * height)}`).join(' ');
+                                  const downloadsPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${Math.round(i * step)} ${Math.round(height - ((p.downloads || 0) / maxDownloads) * height)}`).join(' ');
+                                  return (
+                                    <>
+                                      <path d={viewsPath} fill="none" stroke="currentColor" className="text-primary opacity-85" strokeLinecap="round" strokeWidth="2"></path>
+                                      <path d={downloadsPath} fill="none" stroke="currentColor" className="text-secondary opacity-80" strokeDasharray="5 4" strokeLinecap="round" strokeWidth="2"></path>
+                                    </>
+                                  );
+                                })()}
+                            </svg>
+                        </div>
+                        <div className="flex justify-between mt-4 text-[10px] text-on-surface-variant uppercase tracking-tighter">
+                            {dailyStats.length > 0 ? (
+                              <>
+                                <span>{selectedDailyStats[0]?.date?.slice(5) || 'N/A'}</span>
+                                <span>{selectedDailyStats[Math.max(0, Math.floor((selectedDailyStats.length - 1) * 0.25))]?.date?.slice(5) || 'N/A'}</span>
+                                <span>{selectedDailyStats[Math.max(0, Math.floor((selectedDailyStats.length - 1) * 0.5))]?.date?.slice(5) || 'N/A'}</span>
+                                <span>{selectedDailyStats[Math.max(0, Math.floor((selectedDailyStats.length - 1) * 0.75))]?.date?.slice(5) || 'N/A'}</span>
+                                <span>{selectedDailyStats[selectedDailyStats.length - 2]?.date?.slice(5) || 'N/A'}</span>
+                                <span>{selectedDailyStats[selectedDailyStats.length - 1]?.date?.slice(5) || 'Today'}</span>
+                              </>
+                            ) : (
+                              <><span>N/A</span><span>N/A</span><span>N/A</span><span>N/A</span><span>N/A</span><span>Today</span></>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="bg-surface-container p-10 rounded-lg flex flex-col border border-outline-variant/10 shadow-sm">
+                        <h2 className="font-noto-serif text-2xl font-bold text-on-surface mb-1">Top Referrers</h2>
+                        <p className="text-xs text-on-surface-variant uppercase tracking-widest mb-8">Traffic Acquisition</p>
+                        <div className="space-y-8 flex-1">
+                            {(() => {
+                              const referrers = rangeReferrers;
+                              const entries: Array<{ label: string; key: string; value: number }> = [
+                                { label: 'LinkedIn', key: 'linkedin', value: referrers.linkedin || 0 },
+                                { label: 'Direct Access', key: 'direct', value: referrers.direct || 0 },
+                                { label: 'Facebook', key: 'facebook', value: referrers.facebook || 0 },
+                                { label: 'Others', key: 'other', value: referrers.other || 0 }
+                              ];
+                              const total = entries.reduce((sum, item) => sum + item.value, 0);
+                              return entries.map((item) => {
+                                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                                return (
+                                  <div className="space-y-2" key={item.key}>
+                                    <div className="flex justify-between items-end">
+                                      <span className="text-sm font-medium">{item.label}</span>
+                                      <span className="text-xs text-on-surface-variant">{pct}%</span>
+                                    </div>
+                                    <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+                                      <div className="h-full bg-primary" style={{ width: `${pct}%` }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'editor' && (
+            <>
+
           {/* Left Column: Editorial Sections */}
           <div className="col-span-12 lg:col-span-8 space-y-4">
             
@@ -776,17 +982,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="bg-secondary-container p-6 rounded-xl border border-secondary/10">
-                <h4 className="font-body font-bold text-on-secondary-container text-xs uppercase tracking-widest mb-4">Live Status</h4>
-                <div className="flex items-center gap-3 bg-white/40 p-4 rounded-lg">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <span className="text-sm font-bold text-secondary">Site is currently active</span>
-                </div>
-                <p className="mt-4 text-[10px] text-secondary-fixed-variant/70 leading-relaxed italic">
-                  "Every curation is a statement of intent. Ensure your public facing persona matches your operational excellence."
-                </p>
-              </div>
-
               <div className="bg-white p-6 rounded-xl border border-outline-variant/20 shadow-sm">
                 <h4 className="font-body font-bold text-primary text-xs uppercase tracking-widest mb-4">Help &amp; Support</h4>
                 <ul className="space-y-3">
@@ -800,6 +995,8 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
 
         {/* Footer Meta */}
