@@ -1,28 +1,61 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { sileo } from 'sileo';
 import { auth } from '../firebase';
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
+  useEffect(() => {
+    sileo.info({
+      title: 'Welcome back',
+      description: 'Sign in to manage your dashboard content.',
+      duration: 2500
+    });
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+
+    if (!email.trim() || !password.trim()) {
+      sileo.warning({
+        title: 'Missing credentials',
+        description: 'Please enter both email and password.'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithEmailAndPassword(auth, email, password);
+      await sileo.promise(
+        (async () => {
+          await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+          return signInWithEmailAndPassword(auth, email, password);
+        })(),
+        {
+          loading: {
+            title: 'Signing you in',
+            description: 'Verifying your credentials...'
+          },
+          success: {
+            title: 'Login successful',
+            description: 'Redirecting to your dashboard.'
+          },
+          error: {
+            title: 'Login failed',
+            description: 'Invalid email or password. Please try again.'
+          }
+        }
+      );
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
-      setError('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -93,12 +126,6 @@ export default function Login() {
                 <p className="text-on-surface-variant text-sm">Enter your credentials to access the dashboard.</p>
               </motion.div>
               
-              {error && (
-                <motion.div variants={fadeUp} className="mb-6 p-4 bg-error-container text-on-error-container rounded-lg text-sm font-medium">
-                  {error}
-                </motion.div>
-              )}
-
               <form className="space-y-6" onSubmit={handleLogin}>
                 {/* Email Field */}
                 <motion.div variants={fadeUp} className="space-y-2">
@@ -146,7 +173,15 @@ export default function Login() {
                     type="checkbox"
                     className="h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary accent-primary"
                     checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setRememberMe(checked);
+                      sileo.info({
+                        title: checked ? 'Remember me enabled' : 'Remember me disabled',
+                        description: checked ? 'Session will persist across browser restarts.' : 'Session will end when browser closes.',
+                        duration: 2200
+                      });
+                    }}
                   />
                   <label htmlFor="rememberMe" className="ml-2 block text-sm text-on-surface-variant font-body">
                     Remember me

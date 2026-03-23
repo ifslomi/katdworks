@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { auth, storage } from '../firebase';
+import { auth } from '../firebase';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
+import { uploadToLocal } from '../utils/localUpload';
+import { IconPicker } from '../components/IconPicker';
 
 export default function Portfolio() {
-  const { data, loading, updateData } = usePortfolioData();
+  const { data, loading, updateData, readError } = usePortfolioData();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -21,20 +22,30 @@ export default function Portfolio() {
     return () => unsubscribe();
   }, []);
 
-  const handleFileUpload = async (file: File, path: string, onComplete: (url: string) => void) => {
+  const handleFileUpload = async (
+    file: File,
+    path: string,
+    onComplete: (url: string) => void,
+    progressKey?: string
+  ) => {
+    const key = progressKey || path;
     if (!file) return;
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-    setUploadProgress(prev => ({ ...prev, [path]: 0 }));
-    uploadTask.on('state_changed', 
-      (snapshot) => setUploadProgress(prev => ({ ...prev, [path]: (snapshot.bytesTransferred / snapshot.totalBytes) * 100 })), 
-      (error) => { console.error(error); setUploadProgress(prev => { const n = {...prev}; delete n[path]; return n; }); }, 
-      async () => {
-        const url = await getDownloadURL(uploadTask.snapshot.ref);
-        onComplete(url);
-        setUploadProgress(prev => { const n = {...prev}; delete n[path]; return n; });
-      }
-    );
+    if (!auth.currentUser) {
+      alert('Please log in before uploading files.');
+      return;
+    }
+    setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+    try {
+      const url = await uploadToLocal(file, path, (progress) => {
+        setUploadProgress(prev => ({ ...prev, [key]: progress }));
+      });
+      onComplete(url);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+    } finally {
+      setUploadProgress(prev => { const n = {...prev}; delete n[key]; return n; });
+    }
   };
 
   const InlineText = ({ value, onChange, className, multiline = false }: { value: string, onChange: (val: string) => void, className?: string, multiline?: boolean }) => {
@@ -66,9 +77,14 @@ export default function Portfolio() {
   };
 
   return (
-    <div className="font-body selection:bg-secondary-container selection:text-on-secondary-container relative">
+    <div className="font-body selection:bg-secondary-container selection:text-on-secondary-container relative overflow-x-hidden">
+      {readError && (
+        <div className="fixed top-0 inset-x-0 z-[60] bg-error-container text-on-error-container px-4 py-2 text-xs text-center">
+          Live content could not be loaded from Firestore. Showing fallback preview data.
+        </div>
+      )}
       {isAdmin && (
-        <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+        <div className="fixed bottom-4 left-4 z-50 flex gap-2">
           <button 
             onClick={() => setIsEditMode(!isEditMode)}
             className={`px-4 py-2 rounded-full font-bold text-sm shadow-lg transition-colors ${isEditMode ? 'bg-error text-white' : 'bg-primary text-white'}`}
@@ -81,6 +97,11 @@ export default function Portfolio() {
         </div>
       )}
 
+      <div
+        className={`origin-top-left transition-transform duration-300 ${isEditMode ? 'scale-[0.93]' : 'scale-100'}`}
+        style={isEditMode ? { width: '107.53%' } : undefined}
+      >
+
       {/* TopNavBar */}
       <motion.nav 
         initial={{ y: -100, opacity: 0 }}
@@ -88,13 +109,23 @@ export default function Portfolio() {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="fixed top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl rounded-full px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center z-50 shadow-xl shadow-[#1a1c1a]/5"
       >
-        <div className="text-xl font-headline font-black text-primary">Virtual Curator</div>
+        <div className="min-w-[220px] flex items-center gap-3">
+          {data.ui.navLogoUrl && (
+            <img
+              src={data.ui.navLogoUrl}
+              alt="Brand"
+              className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-white"
+              referrerPolicy="no-referrer"
+            />
+          )}
+          <div className="text-xl font-headline font-black text-primary">
+            <InlineText value={data.ui.navTitle} onChange={(val) => updateData({ ui: { ...data.ui, navTitle: val } })} />
+          </div>
+        </div>
         <div className="hidden md:flex gap-8 items-center">
-          <a className="text-secondary font-medium hover:text-primary transition-all duration-300 ease-in-out" href="#about">About</a>
-          <a className="text-secondary font-medium hover:text-primary transition-all duration-300 ease-in-out" href="#experience">Experience</a>
-          <a className="text-secondary font-medium hover:text-primary transition-all duration-300 ease-in-out" href="#skills">Skills</a>
-          <a className="text-secondary font-medium hover:text-primary transition-all duration-300 ease-in-out" href="#projects">Projects</a>
-          <a className="text-secondary font-medium hover:text-primary transition-all duration-300 ease-in-out" href="#contact">Contact</a>
+          {data.ui.navLinks.map((item) => (
+            <a key={item.id} className="text-secondary font-medium hover:text-primary transition-all duration-300 ease-in-out" href={item.href || '#'}>{item.label}</a>
+          ))}
         </div>
         <Link to="/login" className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform">
           Login
@@ -110,12 +141,89 @@ export default function Portfolio() {
           className="hidden md:flex flex-col items-center gap-4"
         >
           <span className="font-label text-xs uppercase tracking-widest text-primary rotate-90 mb-8 origin-center">Connect</span>
-          <a className="bg-surface-container text-primary rounded-full p-3 hover:bg-secondary hover:text-white transition-all duration-300 hover:translate-x-[-4px]" href="#">
-            <span className="material-symbols-outlined" data-icon="public">public</span>
-          </a>
-          <a className="bg-surface-container text-primary rounded-full p-3 hover:bg-secondary hover:text-white transition-all duration-300 hover:translate-x-[-4px]" href="#">
-            <span className="material-symbols-outlined" data-icon="group">group</span>
-          </a>
+          {data.ui.socialIcons.map((item) => (
+            <a
+              key={item.id}
+              className="bg-surface-container text-primary rounded-full p-3 hover:bg-secondary hover:text-white transition-all duration-300 hover:translate-x-[-4px]"
+              href={item.link || '#'}
+              target={item.link && item.link !== '#' ? '_blank' : '_self'}
+              rel="noopener noreferrer"
+            >
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.icon || 'social'} className="w-6 h-6 rounded object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="material-symbols-outlined" data-icon={item.icon}>{item.icon}</span>
+              )}
+            </a>
+          ))}
+          {isEditMode && (
+            <div className="mt-4 w-64 bg-white/80 rounded-lg p-3 space-y-2 border border-outline-variant/40 shadow-xl">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Social Icons</p>
+              {data.ui.socialIcons.map((item, idx) => (
+                <div key={item.id} className="grid grid-cols-1 gap-1">
+                  <IconPicker
+                    value={item.icon}
+                    onChange={(val) => {
+                      const next = [...data.ui.socialIcons];
+                      next[idx] = { ...next[idx], icon: val };
+                      updateData({ ui: { ...data.ui, socialIcons: next } });
+                    }}
+                    label="Social Icon"
+                  />
+                  <input
+                    value={item.link}
+                    onChange={(e) => {
+                      const next = [...data.ui.socialIcons];
+                      next[idx] = { ...next[idx], link: e.target.value };
+                      updateData({ ui: { ...data.ui, socialIcons: next } });
+                    }}
+                    className="text-xs bg-white border border-outline-variant/40 rounded px-2 py-1"
+                    placeholder="https://..."
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={el => fileInputRefs.current[`social-${item.id}`] = el}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFileUpload(file, 'logos', (url) => {
+                          const next = [...data.ui.socialIcons];
+                          next[idx] = { ...next[idx], imageUrl: url };
+                          updateData({ ui: { ...data.ui, socialIcons: next } });
+                        }, `social-${item.id}`);
+                      }
+                      e.currentTarget.value = '';
+                    }}
+                    className="hidden"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRefs.current[`social-${item.id}`]?.click()}
+                      className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
+                    >
+                      {uploadProgress[`social-${item.id}`] !== undefined ? `Uploading ${Math.round(uploadProgress[`social-${item.id}`])}%` : 'Upload Logo'}
+                    </button>
+                    {item.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...data.ui.socialIcons];
+                          next[idx] = { ...next[idx], imageUrl: '' };
+                          updateData({ ui: { ...data.ui, socialIcons: next } });
+                        }}
+                        className="text-[10px] px-2 py-1 rounded bg-error/10 text-error hover:bg-error/20"
+                      >
+                        Remove Logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <p className="text-[10px] text-on-surface-variant">You can keep icon text, or upload a logo image per social button.</p>
+            </div>
+          )}
         </motion.div>
       </aside>
 
@@ -174,6 +282,7 @@ export default function Portfolio() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file, 'images', (url) => updateData({ hero: { ...data.hero, imageUrl: url } }));
+                      e.currentTarget.value = '';
                     }}
                     className="hidden"
                   />
@@ -202,7 +311,9 @@ export default function Portfolio() {
             variants={staggerContainer}
             className="max-w-4xl"
           >
-            <motion.h2 variants={fadeUp} className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12">Architecture of Order</motion.h2>
+            <motion.h2 variants={fadeUp} className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12">
+              <InlineText value={data.ui.sectionTitles.about} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, about: val } } })} />
+            </motion.h2>
             <div className="grid md:grid-cols-2 gap-8 md:gap-12">
               <motion.div variants={fadeUp} className="text-lg md:text-xl font-headline italic text-on-surface-variant leading-relaxed">
                 "<InlineText multiline value={data.about.quote} onChange={(val) => updateData({ about: { ...data.about, quote: val } })} />"
@@ -255,8 +366,10 @@ export default function Portfolio() {
             variants={fadeUp}
             className="flex flex-col md:flex-row justify-between items-baseline mb-12 md:mb-16"
           >
-            <h2 className="font-headline text-3xl md:text-4xl font-bold text-primary">Professional Journey</h2>
-            <span className="text-secondary font-label tracking-widest text-xs md:text-sm uppercase mt-2 md:mt-0">2016 — PRESENT</span>
+            <h2 className="font-headline text-3xl md:text-4xl font-bold text-primary">
+              <InlineText value={data.ui.sectionTitles.experience} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, experience: val } } })} />
+            </h2>
+        
           </motion.div>
           <div className="space-y-12 md:space-y-16">
             {data.experience.map((exp, index) => (
@@ -342,7 +455,7 @@ export default function Portfolio() {
             variants={fadeUp}
             className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12"
           >
-            Expertise Spectrum
+            <InlineText value={data.ui.sectionTitles.skills} onChange={(val) => updateData({ ui: { ...data.ui, expertiseTitle: val, sectionTitles: { ...data.ui.sectionTitles, skills: val } } })} />
           </motion.h2>
           <motion.div 
             initial="hidden"
@@ -351,30 +464,66 @@ export default function Portfolio() {
             variants={staggerContainer}
             className="grid grid-cols-1 md:grid-cols-4 gap-4"
           >
-            {/* Digital Organization */}
-            <motion.div variants={fadeUp} className="md:col-span-2 bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-sm border border-outline-variant/10 hover:-translate-y-1 transition-transform duration-300">
-              <span className="material-symbols-outlined text-secondary text-3xl mb-3 md:mb-4" data-icon="folder_managed">folder_managed</span>
-              <h4 className="font-headline text-xl md:text-2xl font-bold text-primary mb-2 md:mb-3">Digital Curatorship</h4>
-              <p className="text-on-surface-variant text-sm md:text-base">Advanced ecosystem design in Notion, Asana, and Airtable. Transforming data chaos into structured actionable intelligence.</p>
-            </motion.div>
-            {/* Commms */}
-            <motion.div variants={fadeUp} className="bg-primary text-on-primary p-6 md:p-8 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-              <span className="material-symbols-outlined text-primary-fixed-dim text-3xl mb-3 md:mb-4" data-icon="forum">forum</span>
-              <h4 className="font-headline text-lg md:text-xl font-bold mb-2 md:mb-3">Strategic Comms</h4>
-              <p className="text-on-primary/80 text-xs md:text-sm">Professional ghostwriting, high-stakes inbox management, and brand voice consistency.</p>
-            </motion.div>
-            {/* Finance */}
-            <motion.div variants={fadeUp} className="bg-surface-container-highest p-6 md:p-8 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-              <span className="material-symbols-outlined text-secondary text-3xl mb-3 md:mb-4" data-icon="payments">payments</span>
-              <h4 className="font-headline text-lg md:text-xl font-bold text-primary mb-2 md:mb-3">Fiscal Oversight</h4>
-              <p className="text-on-surface-variant text-xs md:text-sm">Invoicing, expense tracking, and basic bookkeeping using QuickBooks and Xero.</p>
-            </motion.div>
-            {/* Event Design */}
-            <motion.div variants={fadeUp} className="bg-secondary-container p-6 md:p-8 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-              <span className="material-symbols-outlined text-on-secondary-container text-3xl mb-3 md:mb-4" data-icon="event_seat">event_seat</span>
-              <h4 className="font-headline text-lg md:text-xl font-bold text-on-secondary-container mb-2 md:mb-3">Event Logistics</h4>
-              <p className="text-on-secondary-container/80 text-xs md:text-sm">Virtual and physical event coordination, from webinar tech to boutique retreat scouting.</p>
-            </motion.div>
+            {data.expertiseCards.map((card, idx) => {
+              const cardClassName = [
+                'md:col-span-2 bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-sm border border-outline-variant/10 hover:-translate-y-1 transition-transform duration-300',
+                'bg-primary text-on-primary p-6 md:p-8 rounded-xl hover:-translate-y-1 transition-transform duration-300',
+                'bg-surface-container-highest p-6 md:p-8 rounded-xl hover:-translate-y-1 transition-transform duration-300',
+                'bg-secondary-container p-6 md:p-8 rounded-xl hover:-translate-y-1 transition-transform duration-300'
+              ][idx] || 'bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-sm border border-outline-variant/10 hover:-translate-y-1 transition-transform duration-300';
+
+              const iconClassName = [
+                'material-symbols-outlined text-secondary text-3xl mb-3 md:mb-4',
+                'material-symbols-outlined text-primary-fixed-dim text-3xl mb-3 md:mb-4',
+                'material-symbols-outlined text-secondary text-3xl mb-3 md:mb-4',
+                'material-symbols-outlined text-on-secondary-container text-3xl mb-3 md:mb-4'
+              ][idx] || 'material-symbols-outlined text-secondary text-3xl mb-3 md:mb-4';
+
+              const titleClassName = [
+                'font-headline text-xl md:text-2xl font-bold text-primary mb-2 md:mb-3',
+                'font-headline text-lg md:text-xl font-bold mb-2 md:mb-3',
+                'font-headline text-lg md:text-xl font-bold text-primary mb-2 md:mb-3',
+                'font-headline text-lg md:text-xl font-bold text-on-secondary-container mb-2 md:mb-3'
+              ][idx] || 'font-headline text-lg md:text-xl font-bold text-primary mb-2 md:mb-3';
+
+              const descriptionClassName = [
+                'text-on-surface-variant text-sm md:text-base',
+                'text-on-primary/80 text-xs md:text-sm',
+                'text-on-surface-variant text-xs md:text-sm',
+                'text-on-secondary-container/80 text-xs md:text-sm'
+              ][idx] || 'text-on-surface-variant text-xs md:text-sm';
+
+              return (
+                <motion.div key={card.id} variants={fadeUp} className={cardClassName}>
+                  <span className={iconClassName} data-icon={card.icon}>{card.icon}</span>
+                  {isEditMode && (
+                    <div className="mb-3 w-full">
+                      <IconPicker
+                        value={card.icon}
+                        onChange={(val) => {
+                          const next = [...data.expertiseCards];
+                          next[idx] = { ...next[idx], icon: val };
+                          updateData({ expertiseCards: next });
+                        }}
+                        label="Card Icon"
+                      />
+                    </div>
+                  )}
+                  <h4 className={titleClassName}>
+                    <InlineText value={card.title} onChange={(val) => {
+                      const next = [...data.expertiseCards];
+                      next[idx] = { ...next[idx], title: val };
+                      updateData({ expertiseCards: next });
+                    }} />
+                  </h4>
+                  <InlineText multiline className={descriptionClassName} value={card.description} onChange={(val) => {
+                    const next = [...data.expertiseCards];
+                    next[idx] = { ...next[idx], description: val };
+                    updateData({ expertiseCards: next });
+                  }} />
+                </motion.div>
+              );
+            })}
             {/* Tech Stack */}
             <motion.div variants={fadeUp} className="md:col-span-3 bg-surface-container-lowest p-6 md:p-8 rounded-xl flex flex-col md:flex-row gap-4 md:items-center">
               <span className="font-label text-xs md:text-sm font-bold text-secondary uppercase tracking-widest md:mr-4">Tech Arsenal:</span>
@@ -425,7 +574,7 @@ export default function Portfolio() {
             variants={fadeUp}
             className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12"
           >
-            Accredited Excellence
+            <InlineText value={data.ui.certificationsTitle} onChange={(val) => updateData({ ui: { ...data.ui, certificationsTitle: val } })} />
           </motion.h2>
           <motion.div 
             initial="hidden"
@@ -435,43 +584,124 @@ export default function Portfolio() {
             className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
           >
             {data.certifications.map((cert, i) => (
-              <motion.div key={cert.id} variants={fadeUp} className="flex items-center gap-6 group relative">
+              <motion.div key={cert.id} variants={fadeUp} className="group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300">
                 {isEditMode && (
                   <button 
                     onClick={() => {
                       const newCerts = data.certifications.filter((_, idx) => idx !== i);
                       updateData({ certifications: newCerts });
                     }}
-                    className="absolute -right-4 top-0 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute right-2 top-2 text-error bg-white rounded-full p-1 hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow border border-error/10"
                     title="Remove Certification"
                   >
-                    <span className="material-symbols-outlined">delete</span>
+                    <span className="material-symbols-outlined text-sm">delete</span>
                   </button>
                 )}
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 ${
-                  i % 3 === 0 ? 'bg-tertiary-container text-primary-fixed' : 
-                  i % 3 === 1 ? 'bg-surface-container-highest text-primary' : 
-                  'bg-secondary-container text-on-secondary-container'
-                }`}>
-                  <span className="material-symbols-outlined" data-icon={i % 3 === 0 ? 'verified' : i % 3 === 1 ? 'workspace_premium' : 'military_tech'} style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {i % 3 === 0 ? 'verified' : i % 3 === 1 ? 'workspace_premium' : 'military_tech'}
-                  </span>
+                
+                {/* Visual Header Part */}
+                <div className={`aspect-[4/3] w-full flex items-center justify-center relative overflow-hidden ${cert.bgColor || 'bg-secondary-container text-on-secondary-container'}`}>
+                  {cert.imageUrl ? (
+                    <img src={cert.imageUrl} alt={cert.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="material-symbols-outlined text-6xl drop-shadow-md" data-icon={cert.iconName || 'workspace_premium'} style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {cert.iconName || 'workspace_premium'}
+                    </span>
+                  )}
+                  {isEditMode && !cert.imageUrl && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[2px]">
+                      <button
+                        onClick={() => fileInputRefs.current[`cert-${cert.id}`]?.click()}
+                        className="text-xs font-bold bg-white text-primary px-4 py-2 rounded-full hover:bg-surface-container-low transition-colors shadow-lg"
+                      >
+                        Upload Image Proof
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <h5 className="font-bold text-primary leading-tight mb-1">
+
+                {/* Content Floor */}
+                <div className="p-6 flex flex-col flex-1 bg-surface">
+                  <h5 className="font-headline font-bold text-xl text-primary leading-tight mb-2">
                     <InlineText value={cert.title} onChange={(val) => {
                       const newCerts = [...data.certifications];
                       newCerts[i].title = val;
                       updateData({ certifications: newCerts });
                     }} />
                   </h5>
-                  <p className="text-sm text-secondary">
+                  <p className="text-sm font-medium text-secondary mb-4">
                     <InlineText value={cert.issuer} onChange={(val) => {
                       const newCerts = [...data.certifications];
                       newCerts[i].issuer = val;
                       updateData({ certifications: newCerts });
                     }} />
                   </p>
+                  
+                  {isEditMode && (
+                    <div className="mt-auto pt-4 border-t border-outline-variant/20 space-y-3">
+                      <div className="text-[10px] font-bold text-outline-variant uppercase">Admin Controls</div>
+                      <IconPicker
+                        value={cert.iconName || ''}
+                        onChange={(val) => {
+                          const newCerts = [...data.certifications];
+                          newCerts[i].iconName = val;
+                          updateData({ certifications: newCerts });
+                        }}
+                        label="Certification Icon"
+                      />
+                      <select
+                        value={cert.bgColor || 'bg-secondary-container text-on-secondary-container'}
+                        onChange={(e) => {
+                          const newCerts = [...data.certifications];
+                          newCerts[i].bgColor = e.target.value;
+                          updateData({ certifications: newCerts });
+                        }}
+                        className="w-full bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                      >
+                        <option value="bg-tertiary-container text-primary-fixed">Soft Gold & Brown</option>
+                        <option value="bg-surface-container-highest text-primary">Slate & Dark</option>
+                        <option value="bg-secondary-container text-on-secondary-container">Warm Gray & Espresso</option>
+                        <option value="bg-primary/10 text-primary">Classic Brand</option>
+                      </select>
+                      
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={el => fileInputRefs.current[`cert-${cert.id}`] = el}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleFileUpload(file, 'certificates', (url) => {
+                                const newCerts = [...data.certifications];
+                                newCerts[i].imageUrl = url;
+                                updateData({ certifications: newCerts });
+                              }, `cert-${cert.id}`);
+                            }
+                            e.currentTarget.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        <button
+                          onClick={() => fileInputRefs.current[`cert-${cert.id}`]?.click()}
+                          className="flex-1 text-xs font-bold bg-primary/10 text-primary px-2 py-2 rounded hover:bg-primary/20 transition-colors"
+                        >
+                          {uploadProgress[`cert-${cert.id}`] !== undefined ? `Uploading ${Math.round(uploadProgress[`cert-${cert.id}`])}%` : (cert.imageUrl ? 'Change Image' : 'Upload Image')}
+                        </button>
+                        {cert.imageUrl && (
+                          <button
+                            onClick={() => {
+                              const newCerts = [...data.certifications];
+                              newCerts[i].imageUrl = '';
+                              updateData({ certifications: newCerts });
+                            }}
+                            className="text-xs font-bold bg-error/10 text-error px-3 py-2 rounded hover:bg-error/20 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -479,7 +709,7 @@ export default function Portfolio() {
               <motion.div variants={fadeUp} className="flex items-center justify-center col-span-1 md:col-span-3">
                 <button 
                   onClick={() => {
-                    const newCerts = [...data.certifications, { id: Date.now().toString(), title: "New Certification", issuer: "New Issuer" }];
+                    const newCerts = [...data.certifications, { id: Date.now().toString(), title: "New Certification", issuer: "New Issuer", iconName: "workspace_premium", imageUrl: "" }];
                     updateData({ certifications: newCerts });
                   }}
                   className="bg-primary/10 text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-primary/20 transition-colors"
@@ -502,7 +732,7 @@ export default function Portfolio() {
             variants={fadeUp}
             className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12"
           >
-            Featured Projects
+            <InlineText value={data.ui.sectionTitles.projects} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, projects: val } } })} />
           </motion.h2>
           <motion.div 
             initial="hidden"
@@ -543,6 +773,7 @@ export default function Portfolio() {
                               updateData({ projects: newProjects });
                             }
                           });
+                          e.currentTarget.value = '';
                         }}
                         className="hidden"
                       />
@@ -578,7 +809,7 @@ export default function Portfolio() {
             {isEditMode && (
               <motion.div variants={fadeUp} className="flex items-center justify-center aspect-video rounded-xl border-2 border-dashed border-outline-variant hover:border-primary transition-colors cursor-pointer"
                 onClick={() => {
-                  const newProjects = [...data.projects, { id: Date.now().toString(), title: "New Project", description: "New Description", imageUrl: "https://picsum.photos/seed/newproject/800/600" }];
+                  const newProjects = [...data.projects, { id: Date.now().toString(), title: "New Project", description: "New Description", link: "#", imageUrl: "https://picsum.photos/seed/newproject/800/600" }];
                   updateData({ projects: newProjects });
                 }}
               >
@@ -614,7 +845,9 @@ export default function Portfolio() {
             className="max-w-6xl mx-auto bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
           >
             <div className="md:w-1/2 p-8 md:p-12 bg-primary text-on-primary">
-              <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 md:mb-8">Initiate Connection</h2>
+              <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 md:mb-8">
+                <InlineText value={data.ui.sectionTitles.contact} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, contact: val } } })} />
+              </h2>
               <p className="text-primary-fixed-dim mb-8 md:mb-12 text-base md:text-lg">Ready to reclaim your focus? Let's discuss how a tailored partnership can elevate your professional trajectory.</p>
               <div className="space-y-4 md:space-y-6">
                 <div className="flex items-center gap-3 md:gap-4">
@@ -656,8 +889,13 @@ export default function Portfolio() {
       <footer className="w-full py-8 md:py-12 px-6 md:px-8 mt-12 md:mt-20 bg-surface-container border-t border-outline-variant/30">
         <div className="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto gap-8">
           <div className="text-center md:text-left">
-            <div className="font-headline font-bold text-2xl text-primary mb-2">Virtual Curator</div>
-            <p className="text-secondary font-body text-sm">© 2024 Virtual Curator. All rights reserved.</p>
+            <div className="font-headline font-bold text-2xl text-primary mb-2 flex items-center justify-center md:justify-start gap-3">
+              {data.ui.footerLogoUrl && (
+                <img src={data.ui.footerLogoUrl} alt="Footer brand" className="w-8 h-8 rounded-lg object-cover border border-outline-variant/20" referrerPolicy="no-referrer" />
+              )}
+              <InlineText value={data.ui.footerTitle} onChange={(val) => updateData({ ui: { ...data.ui, footerTitle: val } })} />
+            </div>
+            <p className="text-secondary font-body text-sm">© 2024 {data.ui.footerTitle}. All rights reserved.</p>
           </div>
           <div className="flex flex-wrap justify-center gap-8">
             <a className="text-secondary font-medium hover:text-primary transition-colors" href="#">Privacy Policy</a>
@@ -666,6 +904,7 @@ export default function Portfolio() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
