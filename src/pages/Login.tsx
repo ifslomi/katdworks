@@ -1,28 +1,75 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { sileo } from 'sileo';
 import { auth } from '../firebase';
 
 export default function Login() {
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
+  useEffect(() => {
+    sileo.info({
+      title: 'Welcome back',
+      description: 'Sign in to manage your dashboard content.',
+      duration: 2500
+    });
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+
+    if (!email.trim() || !password.trim()) {
+      sileo.warning({
+        title: 'Missing credentials',
+        description: 'Please enter both email and password.'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithEmailAndPassword(auth, email, password);
+      await sileo.promise(
+        (async () => {
+          await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+          return signInWithEmailAndPassword(auth, email, password);
+        })(),
+        {
+          loading: {
+            title: 'Signing you in',
+            description: 'Verifying your credentials...'
+          },
+          success: {
+            title: 'Login successful',
+            description: 'Redirecting to your dashboard.'
+          },
+          error: {
+            title: 'Login failed',
+            description: 'Invalid email or password. Please try again.'
+          }
+        }
+      );
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
-      setError('Invalid email or password. Please try again.');
+      const code = err?.code || '';
+      let description = 'Unable to sign in right now. Please try again.';
+      if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+        description = 'Invalid email or password. Please check your credentials.';
+      } else if (code.includes('too-many-requests')) {
+        description = 'Too many attempts detected. Please wait and try again.';
+      } else if (code.includes('network-request-failed')) {
+        description = 'Network error. Check your internet connection and retry.';
+      }
+      sileo.warning({
+        title: 'Authentication error',
+        description
+      });
     } finally {
       setLoading(false);
     }
@@ -74,7 +121,7 @@ export default function Login() {
             </div>
             {/* Footer style pattern inside branding */}
             <div className="mt-12 pt-8 border-t border-white/10 relative z-10">
-              <p className="text-[10px] text-on-primary-container/60 font-label tracking-wider uppercase">© 2024 Virtual Curator</p>
+              <p className="text-[10px] text-on-primary-container/60 font-label tracking-wider uppercase">© {currentYear} Virtual Curator</p>
             </div>
           </div>
 
@@ -93,12 +140,6 @@ export default function Login() {
                 <p className="text-on-surface-variant text-sm">Enter your credentials to access the dashboard.</p>
               </motion.div>
               
-              {error && (
-                <motion.div variants={fadeUp} className="mb-6 p-4 bg-error-container text-on-error-container rounded-lg text-sm font-medium">
-                  {error}
-                </motion.div>
-              )}
-
               <form className="space-y-6" onSubmit={handleLogin}>
                 {/* Email Field */}
                 <motion.div variants={fadeUp} className="space-y-2">
@@ -112,6 +153,7 @@ export default function Login() {
                       id="email" 
                       type="email" 
                       placeholder="admin@example.com" 
+                      title="Enter your admin email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -132,6 +174,7 @@ export default function Login() {
                       id="password" 
                       type="password" 
                       placeholder="••••••••••••" 
+                      title="Enter your account password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -144,9 +187,18 @@ export default function Login() {
                   <input
                     id="rememberMe"
                     type="checkbox"
+                    title="Keep me signed in on this device"
                     className="h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary accent-primary"
                     checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setRememberMe(checked);
+                      sileo.info({
+                        title: checked ? 'Remember me enabled' : 'Remember me disabled',
+                        description: checked ? 'Session will persist across browser restarts.' : 'Session will end when browser closes.',
+                        duration: 2200
+                      });
+                    }}
                   />
                   <label htmlFor="rememberMe" className="ml-2 block text-sm text-on-surface-variant font-body">
                     Remember me
@@ -158,6 +210,7 @@ export default function Login() {
                   variants={fadeUp}
                   className="w-full bg-primary text-on-primary py-5 rounded-lg font-label font-bold uppercase tracking-widest text-sm hover:bg-secondary active:scale-[0.98] transition-all duration-300 shadow-lg shadow-primary/10 disabled:opacity-70" 
                   type="submit"
+                  title="Sign in to open the admin dashboard"
                   disabled={loading}
                 >
                   {loading ? 'Authenticating...' : 'Login to Dashboard'}
@@ -171,7 +224,7 @@ export default function Login() {
       {/* Footer */}
       <footer className="w-full py-8 px-8 mt-auto flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto border-t border-outline-variant/10">
         <div className="font-headline font-bold text-primary">Virtual Curator</div>
-        <div className="text-[11px] font-label text-secondary-fixed-variant opacity-60 tracking-wider">© 2024 KATRINA'S PORTFOLIO. ALL RIGHTS RESERVED.</div>
+        <div className="text-[11px] font-label text-secondary-fixed-variant opacity-60 tracking-wider">© {currentYear} KATRINA'S PORTFOLIO. ALL RIGHTS RESERVED.</div>
       </footer>
     </div>
   );
