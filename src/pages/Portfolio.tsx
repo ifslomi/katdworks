@@ -9,6 +9,7 @@ import { auth, db, storage } from '../firebase';
 import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
 import { uploadToCloudinary } from '../utils/localUpload';
 import { IconPicker } from '../components/IconPicker';
+import { Footer } from '../components/Footer';
 
 const ANALYTICS_STATS_DOC = 'portfolio_stats';
 const ANALYTICS_COLLECTION = 'analytics';
@@ -1515,65 +1516,7 @@ export default function Portfolio() {
       </section>
       )}
 
-      {/* Footer */}
-      <footer className="w-full py-8 md:py-12 px-6 md:px-8 mt-12 md:mt-20 bg-surface-container border-t border-outline-variant/30">
-        <div className="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto gap-8">
-          <div className="text-center md:text-left">
-            <div className="font-headline font-bold text-2xl text-primary mb-2 flex items-center justify-center md:justify-start gap-3">
-              {data.ui.footerLogoUrl && (
-                <div className="relative group">
-                  <img
-                    src={data.ui.footerLogoUrl}
-                    alt="Footer brand"
-                    className="w-8 h-8 rounded-lg object-cover border border-outline-variant/20"
-                    referrerPolicy="no-referrer"
-                  />
-                  {isEditMode && (
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg z-10">
-                      <button
-                        onClick={() => fileInputRefs.current['footerLogo']?.click()}
-                        className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              {isEditMode && !data.ui.footerLogoUrl && (
-                <button
-                  onClick={() => fileInputRefs.current['footerLogo']?.click()}
-                  className="text-[10px] font-bold bg-surface-container-highest text-primary px-2 py-1 rounded hover:bg-outline-variant transition-colors border border-outline-variant/20"
-                >
-                  + Logo
-                </button>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                ref={el => fileInputRefs.current['footerLogo'] = el}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    handleFileUpload(file, 'logos', (url) => {
-                      updateData({ ui: { ...data.ui, footerLogoUrl: url } });
-                    }, 'footerLogo');
-                  }
-                  e.currentTarget.value = '';
-                }}
-                className="hidden"
-              />
-              <InlineText value={data.ui.footerTitle} onChange={(val) => updateData({ ui: { ...data.ui, footerTitle: val } })} />
-            </div>
-            <p className="text-secondary font-body text-sm">© 2024 {data.ui.footerTitle}. All rights reserved.</p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-8">
-            <a className="text-secondary font-medium hover:text-primary transition-colors" href="#">Privacy Policy</a>
-            <a className="text-secondary font-medium hover:text-primary transition-colors" href="#">Terms of Service</a>
-            <a className="text-secondary font-medium hover:text-primary transition-colors" href="#">Contact Info</a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
       </div>
     </div>
     </EditModeContext.Provider>
