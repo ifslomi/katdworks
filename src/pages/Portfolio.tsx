@@ -561,9 +561,6 @@ export default function Portfolio() {
             variants={staggerContainer}
             className="order-2 md:order-1"
           >
-            <motion.span variants={fadeUp} className="inline-block px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label text-xs font-bold mb-4 md:mb-6">
-              Available for commissions worldwide
-            </motion.span>
             <motion.h1 variants={fadeUp} className="font-headline text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black text-primary leading-[1.04] mb-4 md:mb-5 -tracking-wider">
               <InlineText value={data.hero.headline} onChange={(val) => updateData({ hero: { ...data.hero, headline: val } })} />:<br />
               <InlineText value={data.hero.subheadline} onChange={(val) => updateData({ hero: { ...data.hero, subheadline: val } })} />
