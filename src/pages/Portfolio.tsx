@@ -465,9 +465,13 @@ export default function Portfolio() {
           </div>
         </div>
         <div className="hidden lg:flex items-center gap-5 absolute left-1/2 -translate-x-1/2">
-          {primaryNavLinks.map((item) => (
-            <a
+          {primaryNavLinks.map((item, idx) => (
+            <motion.a
               key={item.id}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 + idx * 0.1, ease: "easeOut" }}
+              whileHover={{ y: -2 }}
               className={`relative text-[15px] leading-none font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${activeSection === item.href.replace('#', '') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               href={item.href || '#'}
               onClick={handleNavClick(item.href || '#')}
@@ -480,14 +484,25 @@ export default function Portfolio() {
                   transition={{ type: 'spring', stiffness: 520, damping: 38 }}
                 />
               )}
-            </a>
+            </motion.a>
           ))}
           {overflowNavLinks.length > 0 && (
-            <details className="relative group">
+            <motion.details
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 + primaryNavLinks.length * 0.1, ease: "easeOut" }}
+              className="relative group"
+            >
               <summary className="list-none cursor-pointer select-none text-secondary text-[15px] font-semibold hover:text-primary transition-colors">
                 More
               </summary>
-              <div className="absolute right-0 mt-3 w-44 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50">
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute right-0 mt-3 w-44 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50"
+              >
                 {overflowNavLinks.map((item) => (
                   <a
                     key={item.id}
@@ -498,16 +513,26 @@ export default function Portfolio() {
                     {item.label}
                   </a>
                 ))}
-              </div>
-            </details>
+              </motion.div>
+            </motion.details>
           )}
         </div>
-        <div className="hidden md:block lg:hidden absolute left-1/2 -translate-x-1/2">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="hidden md:block lg:hidden absolute left-1/2 -translate-x-1/2"
+        >
           <details className="relative">
-            <summary className="list-none cursor-pointer bg-surface-container-highest text-primary px-4 py-2 rounded-lg text-sm font-bold">
+            <summary className="list-none cursor-pointer bg-surface-container-highest text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-outline-variant transition-colors">
               Menu
             </summary>
-            <div className="absolute right-0 mt-3 w-48 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute right-0 mt-3 w-48 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50"
+            >
               {visibleNavLinks.map((item) => (
                 <a
                   key={item.id}
@@ -518,11 +543,16 @@ export default function Portfolio() {
                   {item.label}
                 </a>
               ))}
-            </div>
+            </motion.div>
           </details>
-        </div>
+        </motion.div>
         {isAdmin && isAdminPreview ? (
-          <button
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             type="button"
             onClick={() => {
               sileo.info({
@@ -533,11 +563,20 @@ export default function Portfolio() {
             className="bg-primary/70 text-on-primary px-6 py-2 rounded-lg font-label font-bold transition-transform cursor-not-allowed"
           >
             Login
-          </button>
+          </motion.button>
         ) : (
-          <Link to="/login" className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform">
-            Login
-          </Link>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Link
+              to="/login"
+              className="inline-block bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
+            >
+              Login
+            </Link>
+          </motion.div>
         )}
       </motion.nav>
 
@@ -554,30 +593,144 @@ export default function Portfolio() {
       </motion.button>
 
       {/* Hero Section */}
-      <section className="relative min-h-[calc(100svh-1.5rem)] flex items-center pt-20 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-surface" id="hero">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20 grid md:grid-cols-2 gap-6 md:gap-10 items-center">
+      <section className="relative min-h-[calc(100svh-1.5rem)] flex items-center pt-20 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-gradient-to-br from-surface via-surface-container-low to-surface" id="hero">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.4, scale: 1 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+            className="absolute -top-40 -right-40 w-96 h-96 bg-secondary-container rounded-full blur-3xl"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 1.4, delay: 0.2, ease: "easeOut" }}
+            className="absolute -bottom-32 -left-32 w-80 h-80 bg-primary-container rounded-full blur-3xl"
+          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.15 }}
+            transition={{ duration: 1.6, delay: 0.4, ease: "easeOut" }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-tertiary-container rounded-full blur-3xl"
+          />
+          
+          {/* Floating Decorative Elements - Optimized */}
+          <motion.div
+            animate={{ 
+              y: [0, -20, 0],
+              rotate: [0, 5, 0]
+            }}
+            transition={{ 
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute top-32 right-1/4 w-24 h-24 border-2 border-outline-variant/20 rounded-xl rotate-12 will-change-transform"
+          />
+          <motion.div
+            animate={{ 
+              y: [0, 25, 0],
+              rotate: [0, -8, 0]
+            }}
+            transition={{ 
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1
+            }}
+            className="absolute bottom-40 left-1/4 w-32 h-32 border border-outline-variant/15 rounded-full will-change-transform"
+          />
+          <motion.div
+            animate={{ 
+              y: [0, -15, 0],
+              x: [0, 10, 0]
+            }}
+            transition={{ 
+              duration: 7,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.5
+            }}
+            className="absolute top-1/2 right-20 w-16 h-16 bg-secondary-container/30 rounded-lg rotate-45 will-change-transform"
+          />
+        </div>
+        
+        {/* Bottom Gradient Blend */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-surface-container-low pointer-events-none z-[5]"></div>
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 grid md:grid-cols-2 gap-6 md:gap-10 items-center relative z-10">
           <motion.div 
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
-            className="order-2 md:order-1"
+            className="order-2 md:order-1 relative"
           >
-            <motion.h1 variants={fadeUp} className="font-headline text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black text-primary leading-[1.04] mb-4 md:mb-5 -tracking-wider">
-              <InlineText value={data.hero.headline} onChange={(val) => updateData({ hero: { ...data.hero, headline: val } })} />:<br />
-              <InlineText value={data.hero.subheadline} onChange={(val) => updateData({ hero: { ...data.hero, subheadline: val } })} />
+            {/* Decorative accent behind text */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 0.1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="absolute -left-8 top-0 w-2 h-32 bg-primary rounded-full"
+            />
+            
+            <motion.h1 variants={fadeUp} className="font-headline text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black text-primary leading-[1.04] mb-4 md:mb-5 -tracking-wider relative">
+              <span className="relative inline-block">
+                <InlineText value={data.hero.headline} onChange={(val) => updateData({ hero: { ...data.hero, headline: val } })} />
+                <motion.span
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+                  className="absolute -bottom-2 left-0 h-1 bg-secondary/30 rounded-full"
+                />
+              </span>
+              :<br />
+              <span className="relative inline-block">
+                <InlineText value={data.hero.subheadline} onChange={(val) => updateData({ hero: { ...data.hero, subheadline: val } })} />
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 1, ease: "backOut" }}
+                  className="absolute -right-8 top-0 w-6 h-6 bg-secondary rounded-full opacity-40"
+                />
+              </span>
             </motion.h1>
             <motion.div variants={fadeUp} className="text-base text-on-surface-variant font-body max-w-lg mb-6 md:mb-7 leading-relaxed">
               <InlineText multiline value={data.hero.description} onChange={(val) => updateData({ hero: { ...data.hero, description: val } })} />
             </motion.div>
             <motion.div variants={fadeUp} className="flex flex-wrap gap-3 md:gap-4">
-              <a className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-secondary transition-colors duration-300 shadow-lg shadow-primary/10" href="#contact">Contact Me</a>
-              <button
+              <motion.a
+                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px -10px rgba(74, 56, 40, 0.3)" }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-secondary transition-colors duration-300 shadow-lg shadow-primary/10 relative overflow-hidden group"
+                href="#contact"
+              >
+                <span className="relative z-10">Contact Me</span>
+                <motion.span
+                  className="absolute inset-0 bg-secondary"
+                  initial={{ x: "-100%" }}
+                  whileHover={{ x: 0 }}
+                  transition={{ duration: 0.3 }}
+                />
+              </motion.a>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 type="button"
-                className="bg-surface-container-highest text-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300" 
+                className="bg-surface-container-highest text-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300 relative group" 
                 onClick={handlePortfolioDownload}
               >
-                Download Portfolio
-              </button>
+                <span className="flex items-center gap-2">
+                  Download Portfolio
+                  <motion.span
+                    animate={{ y: [0, 3, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="material-symbols-outlined text-sm"
+                  >
+                    download
+                  </motion.span>
+                </span>
+              </motion.button>
             </motion.div>
           </motion.div>
           <motion.div 
@@ -587,8 +740,19 @@ export default function Portfolio() {
             className="order-1 md:order-2 relative w-full max-w-md mx-auto md:max-w-none"
           >
             <div className="relative w-fit mx-auto">
+              {/* Main Image Container with Enhanced Effects */}
               <div className="aspect-square md:aspect-[4/5] max-h-[38vh] md:max-h-[56vh] rounded-xl overflow-hidden shadow-2xl z-10 relative group">
-                <img className="w-full h-full object-cover" alt="Professional portrait" src={data.hero.imageUrl} referrerPolicy="no-referrer" />
+                {/* Gradient Overlay on Hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/20 via-transparent to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <motion.img
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="w-full h-full object-cover will-change-transform"
+                  alt="Professional portrait"
+                  src={data.hero.imageUrl}
+                  referrerPolicy="no-referrer"
+                />
                 {isEditMode && (
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <input 
@@ -611,8 +775,34 @@ export default function Portfolio() {
                   </div>
                 )}
               </div>
-              <div className="absolute -bottom-4 -left-4 md:-bottom-6 md:-left-6 w-32 h-32 md:w-48 md:h-48 bg-primary-container rounded-xl -z-10 opacity-10"></div>
-              <div className="absolute -top-4 -right-4 md:-top-6 md:-right-6 w-48 h-48 md:w-64 md:h-64 border-2 border-outline-variant rounded-full -z-10 opacity-30"></div>
+              
+              {/* Enhanced Decorative Elements */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+                animate={{ opacity: 0.15, scale: 1, rotate: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="absolute -bottom-4 -left-4 md:-bottom-6 md:-left-6 w-32 h-32 md:w-48 md:h-48 bg-primary-container rounded-xl -z-10"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 0.4, scale: 1 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+                className="absolute -top-4 -right-4 md:-top-6 md:-right-6 w-48 h-48 md:w-64 md:h-64 border-2 border-outline-variant rounded-full -z-10"
+              />
+              
+              {/* Animated Corner Accent */}
+              <motion.div
+                initial={{ opacity: 0, x: 20, y: -20 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.7 }}
+                className="absolute top-0 right-0 w-20 h-20 border-t-4 border-r-4 border-secondary rounded-tr-xl -z-5"
+              />
+              <motion.div
+                initial={{ opacity: 0, x: -20, y: 20 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
+                className="absolute bottom-0 left-0 w-20 h-20 border-b-4 border-l-4 border-secondary rounded-bl-xl -z-5"
+              />
 
               <motion.div
                 initial={{ x: 16, opacity: 0 }}
@@ -620,11 +810,23 @@ export default function Portfolio() {
                 transition={{ delay: 0.45, duration: 0.55 }}
                 className="hidden md:flex absolute -right-16 lg:-right-[4.75rem] top-1/2 -translate-y-1/2 flex-col items-center gap-3 z-20"
               >
-                <span className="font-label text-[10px] uppercase tracking-widest text-primary">Connect</span>
-                {data.ui.socialIcons.map((item) => (
-                  <a
+                <motion.span
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.4 }}
+                  className="font-label text-[10px] uppercase tracking-widest text-primary"
+                >
+                  Connect
+                </motion.span>
+                {data.ui.socialIcons.map((item, idx) => (
+                  <motion.a
                     key={item.id}
-                    className="bg-surface-container text-primary rounded-full p-2.5 shadow-md border border-outline-variant/20 hover:bg-secondary hover:text-white transition-all duration-300 hover:translate-x-[-3px]"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.9 + idx * 0.1, duration: 0.4 }}
+                    whileHover={{ scale: 1.15, x: -5 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-surface-container text-primary rounded-full p-2.5 shadow-md border border-outline-variant/20 hover:bg-secondary hover:text-white transition-all duration-300"
                     href={item.link || '#'}
                     target={item.link && item.link !== '#' ? '_blank' : '_self'}
                     rel="noopener noreferrer"
@@ -634,7 +836,7 @@ export default function Portfolio() {
                     ) : (
                       <span className="material-symbols-outlined" data-icon={item.icon}>{item.icon}</span>
                     )}
-                  </a>
+                  </motion.a>
                 ))}
                 {isEditMode && (
                   <div className="mt-2 w-64 bg-white/90 rounded-lg p-3 space-y-2 border border-outline-variant/40 shadow-xl">
@@ -710,8 +912,20 @@ export default function Portfolio() {
       </section>
 
       {/* About Me */}
-      <section className="py-16 md:py-24 bg-surface-container-low" id="about">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-16 md:py-24 bg-surface-container-low relative overflow-hidden" id="about">
+        {/* Top Gradient Blend - Stronger */}
+        <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-surface via-surface-container-low/80 to-transparent pointer-events-none z-[5]"></div>
+        
+        {/* Background Decorative Elements */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-20 right-10 w-72 h-72 bg-primary rounded-full blur-3xl opacity-5" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 border border-outline-variant/10 rounded-full" style={{ animation: 'spin 50s linear infinite' }} />
+        </div>
+        
+        {/* Bottom Gradient Blend */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-surface pointer-events-none z-[5]"></div>
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.div 
             initial="hidden"
             whileInView="visible"
@@ -719,13 +933,20 @@ export default function Portfolio() {
             variants={staggerContainer}
             className="max-w-4xl"
           >
-            <motion.h2 variants={fadeUp} className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12">
+            <motion.h2 variants={fadeUp} className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12 relative inline-block">
               <InlineText value={data.ui.sectionTitles.about} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, about: val } } })} />
+              <motion.span
+                initial={{ width: 0 }}
+                whileInView={{ width: "60%" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className="absolute -bottom-2 left-0 h-1 bg-secondary/40 rounded-full"
+              />
             </motion.h2>
             <div className="grid md:grid-cols-2 gap-8 md:gap-12">
-              <motion.div variants={fadeUp} className="text-lg md:text-xl font-headline italic text-on-surface-variant leading-relaxed">
+              <div className="text-lg md:text-xl font-headline italic text-on-surface-variant leading-relaxed relative pl-6 border-l-4 border-secondary/30">
                 "<InlineText multiline value={data.about.quote} onChange={(val) => updateData({ about: { ...data.about, quote: val } })} />"
-              </motion.div>
+              </div>
               <motion.div variants={fadeUp} className="space-y-4 md:space-y-6 text-on-surface text-base leading-relaxed">
                 {data.about.paragraphs.map((p, i) => (
                   <div key={i} className="relative group">
@@ -766,8 +987,21 @@ export default function Portfolio() {
 
       {/* Experience - Timeline */}
       {showExperienceSection && (
-      <section className="py-16 md:py-24 bg-surface" id="experience">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-16 md:py-24 bg-surface relative overflow-hidden" id="experience">
+        {/* Animated Background */}
+        <motion.div
+          animate={{ 
+            backgroundPosition: ['0% 0%', '100% 100%'],
+          }}
+          transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+            backgroundSize: '50px 50px'
+          }}
+        />
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.div 
             initial="hidden"
             whileInView="visible"
@@ -775,12 +1009,28 @@ export default function Portfolio() {
             variants={fadeUp}
             className="flex flex-col md:flex-row justify-between items-baseline mb-12 md:mb-16"
           >
-            <h2 className="font-headline text-3xl md:text-4xl font-bold text-primary">
+            <h2 className="font-headline text-3xl md:text-4xl font-bold text-primary relative inline-block">
               <InlineText value={data.ui.sectionTitles.experience} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, experience: val } } })} />
+              <motion.div
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-transparent origin-left"
+              />
             </h2>
         
           </motion.div>
-          <div className="space-y-12 md:space-y-16">
+          <div className="space-y-12 md:space-y-16 relative">
+            {/* Vertical Timeline Line */}
+            <motion.div
+              initial={{ height: 0 }}
+              whileInView={{ height: "100%" }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.5, ease: "easeOut" }}
+              className="hidden md:block absolute left-[50%] top-0 w-[2px] bg-gradient-to-b from-secondary via-outline-variant to-transparent"
+            />
+            
             {data.experience.map((exp, index) => (
               <motion.div 
                 key={exp.id}
@@ -790,6 +1040,15 @@ export default function Portfolio() {
                 variants={fadeUp}
                 className="relative pl-8 md:pl-0 group"
               >
+                {/* Timeline Dot */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  whileInView={{ scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="hidden md:block absolute left-[50%] top-8 -translate-x-1/2 w-4 h-4 bg-secondary rounded-full border-4 border-surface z-10 shadow-lg"
+                />
+                
                 {isEditMode && (
                   <button 
                     onClick={() => {
@@ -802,8 +1061,7 @@ export default function Portfolio() {
                     <span className="material-symbols-outlined">delete</span>
                   </button>
                 )}
-                {index === 0 && <div className="hidden md:block absolute left-[50%] top-0 bottom-0 w-[1px] bg-outline-variant"></div>}
-                <div className="grid md:grid-cols-2 gap-4 md:gap-8 items-start">
+                <div className="grid md:grid-cols-2 gap-4 md:gap-8 items-start bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
                   <div className="md:text-right md:pr-12">
                     <h3 className="font-headline text-xl md:text-2xl font-bold text-primary">
                       <InlineText value={exp.title} onChange={(val) => {
@@ -857,16 +1115,32 @@ export default function Portfolio() {
 
       {/* Education */}
       {showEducationSection && (
-      <section className="py-16 md:py-24 bg-surface-container-low" id="education">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-16 md:py-24 bg-surface-container-low relative overflow-hidden" id="education">
+        {/* Decorative Background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+            className="absolute top-1/4 right-1/4 w-64 h-64 border-2 border-outline-variant/5 rounded-full"
+          />
+        </div>
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.h2
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
-            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12"
+            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12 relative inline-block"
           >
             <InlineText value={data.ui.sectionTitles.education} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, education: val } } })} />
+            <motion.span
+              initial={{ width: 0 }}
+              whileInView={{ width: "100%" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="absolute -bottom-2 left-0 h-1 bg-secondary/30 rounded-full"
+            />
           </motion.h2>
           <motion.div
             initial="hidden"
@@ -876,7 +1150,20 @@ export default function Portfolio() {
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             {data.education.map((entry, index) => (
-              <motion.div key={entry.id} variants={fadeUp} className="relative group bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10">
+              <motion.div
+                key={entry.id}
+                variants={fadeUp}
+                whileHover={{ y: -5, boxShadow: "0 20px 40px -10px rgba(0,0,0,0.1)" }}
+                className="relative group bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10 overflow-hidden"
+              >
+                {/* Decorative Corner */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  whileInView={{ scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="absolute top-0 right-0 w-20 h-20 bg-secondary/5 rounded-bl-full"
+                />
                 {isEditMode && (
                   <button
                     onClick={() => {
@@ -947,16 +1234,32 @@ export default function Portfolio() {
 
       {/* Trainings and Seminars */}
       {showTrainingsSection && (
-      <section className="py-16 md:py-24 bg-surface" id="trainings">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-16 md:py-24 bg-surface relative overflow-hidden" id="trainings">
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 0.03 }}
+            viewport={{ once: true }}
+            className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-primary to-transparent"
+          />
+        </div>
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.h2
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
-            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12"
+            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12 relative inline-block"
           >
             <InlineText value={data.ui.sectionTitles.trainings} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, trainings: val } } })} />
+            <motion.span
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="absolute -bottom-2 left-0 right-0 h-1 bg-secondary/30 rounded-full origin-left"
+            />
           </motion.h2>
           <motion.div
             initial="hidden"
@@ -966,7 +1269,20 @@ export default function Portfolio() {
             className="space-y-4"
           >
             {data.trainings.map((entry, index) => (
-              <motion.div key={entry.id} variants={fadeUp} className="relative group bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+              <motion.div
+                key={entry.id}
+                variants={fadeUp}
+                whileHover={{ x: 5 }}
+                className="relative group bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:border-secondary/30 transition-all"
+              >
+                {/* Side Accent */}
+                <motion.div
+                  initial={{ height: 0 }}
+                  whileInView={{ height: "100%" }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="absolute left-0 top-0 w-1 bg-secondary rounded-r-full"
+                />
                 {isEditMode && (
                   <button
                     onClick={() => {
@@ -1043,16 +1359,36 @@ export default function Portfolio() {
 
       {/* Skills - Bento Grid */}
       {showSkillsSection && (
-      <section className="py-16 md:py-24 bg-surface-container" id="skills">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-16 md:py-24 bg-surface-container relative overflow-hidden" id="skills">
+        {/* Animated Grid Background */}
+        <motion.div
+          animate={{ 
+            backgroundPosition: ['0% 0%', '100% 100%'],
+          }}
+          transition={{ duration: 30, repeat: Infinity, repeatType: "reverse" }}
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
+            backgroundSize: '60px 60px'
+          }}
+        />
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.h2 
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
-            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12"
+            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12 relative inline-block"
           >
             <InlineText value={data.ui.sectionTitles.skills} onChange={(val) => updateData({ ui: { ...data.ui, expertiseTitle: val, sectionTitles: { ...data.ui.sectionTitles, skills: val } } })} />
+            <motion.span
+              initial={{ width: 0 }}
+              whileInView={{ width: "100%" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="absolute -bottom-2 left-0 h-1 bg-secondary/30 rounded-full"
+            />
           </motion.h2>
           <motion.div 
             initial="hidden"
@@ -1091,8 +1427,22 @@ export default function Portfolio() {
               ][idx] || 'text-on-surface-variant text-xs md:text-sm';
 
               return (
-                <motion.div key={card.id} variants={fadeUp} className={cardClassName}>
-                  <span className={iconClassName} data-icon={card.icon}>{card.icon}</span>
+                <motion.div
+                  key={card.id}
+                  variants={fadeUp}
+                  whileHover={{ y: -8, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)" }}
+                  className={cardClassName}
+                >
+                  <motion.span
+                    initial={{ scale: 0, rotate: -180 }}
+                    whileInView={{ scale: 1, rotate: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: idx * 0.1 }}
+                    className={iconClassName}
+                    data-icon={card.icon}
+                  >
+                    {card.icon}
+                  </motion.span>
                   {isEditMode && (
                     <div className="mb-3 w-full">
                       <IconPicker
@@ -1122,11 +1472,23 @@ export default function Portfolio() {
               );
             })}
             {/* Tech Stack */}
-            <motion.div variants={fadeUp} className="md:col-span-3 bg-surface-container-lowest p-6 md:p-8 rounded-xl flex flex-col md:flex-row gap-4 md:items-center">
+            <motion.div
+              variants={fadeUp}
+              whileHover={{ scale: 1.01 }}
+              className="md:col-span-3 bg-surface-container-lowest p-6 md:p-8 rounded-xl flex flex-col md:flex-row gap-4 md:items-center border border-outline-variant/10"
+            >
               <span className="font-label text-xs md:text-sm font-bold text-secondary uppercase tracking-widest md:mr-4">Tech Arsenal:</span>
               <div className="flex flex-wrap gap-2">
                 {data.skills.map((skill, i) => (
-                  <span key={i} className="relative group px-3 py-1.5 md:px-4 md:py-2 bg-surface-container-high rounded-full text-[10px] md:text-xs font-bold text-primary hover:bg-secondary hover:text-white transition-colors cursor-default">
+                  <motion.span
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    className="relative group px-3 py-1.5 md:px-4 md:py-2 bg-surface-container-high rounded-full text-[10px] md:text-xs font-bold text-primary hover:bg-secondary hover:text-white transition-colors cursor-default"
+                  >
                     <InlineText value={skill} onChange={(val) => {
                       const newSkills = [...data.skills];
                       newSkills[i] = val;
@@ -1143,7 +1505,7 @@ export default function Portfolio() {
                         ×
                       </button>
                     )}
-                  </span>
+                  </motion.span>
                 ))}
                 {isEditMode && (
                   <button 
@@ -1164,16 +1526,32 @@ export default function Portfolio() {
 
       {/* Certifications */}
       {showCertificationsSection && (
-      <section className="py-14 md:py-18 bg-surface" id="certifications">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-14 md:py-18 bg-surface relative overflow-hidden" id="certifications">
+        {/* Decorative Elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            animate={{ scale: [1, 1.2, 1], opacity: [0.03, 0.05, 0.03] }}
+            transition={{ duration: 8, repeat: Infinity }}
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-secondary rounded-full blur-3xl"
+          />
+        </div>
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.h2 
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
-            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-6 md:mb-8"
+            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-6 md:mb-8 relative inline-block"
           >
             <InlineText value={data.ui.certificationsTitle} onChange={(val) => updateData({ ui: { ...data.ui, certificationsTitle: val } })} />
+            <motion.span
+              initial={{ width: 0 }}
+              whileInView={{ width: "100%" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="absolute -bottom-2 left-0 h-1 bg-secondary/30 rounded-full"
+            />
           </motion.h2>
           <motion.div 
             initial="hidden"
@@ -1183,7 +1561,12 @@ export default function Portfolio() {
             className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
           >
             {data.certifications.map((cert, i) => (
-              <motion.div key={cert.id} variants={fadeUp} className="group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300">
+              <motion.div
+                key={cert.id}
+                variants={fadeUp}
+                whileHover={{ y: -8, boxShadow: "0 20px 40px -10px rgba(0,0,0,0.1)" }}
+                className="group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1 transition-all duration-300"
+              >
                 {isEditMode && (
                   <button 
                     onClick={() => {
@@ -1200,11 +1583,26 @@ export default function Portfolio() {
                 {/* Visual Header Part */}
                 <div className={`aspect-[5/3] w-full flex items-center justify-center relative overflow-hidden ${cert.bgColor || 'bg-secondary-container text-on-secondary-container'}`}>
                   {cert.imageUrl ? (
-                    <img src={cert.imageUrl} alt={cert.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <motion.img
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ duration: 0.4 }}
+                      src={cert.imageUrl}
+                      alt={cert.title}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <span className="material-symbols-outlined text-5xl drop-shadow-md" data-icon={cert.iconName || 'workspace_premium'} style={{ fontVariationSettings: "'FILL' 1" }}>
+                    <motion.span
+                      initial={{ scale: 0, rotate: -180 }}
+                      whileInView={{ scale: 1, rotate: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.1, duration: 0.6 }}
+                      className="material-symbols-outlined text-5xl drop-shadow-md"
+                      data-icon={cert.iconName || 'workspace_premium'}
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
                       {cert.iconName || 'workspace_premium'}
-                    </span>
+                    </motion.span>
                   )}
                   {isEditMode && !cert.imageUrl && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[2px]">
@@ -1324,16 +1722,30 @@ export default function Portfolio() {
 
       {/* Projects Section */}
       {showProjectsSection && (
-      <section className="py-14 md:py-18 bg-surface-container-low" id="projects">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-14 md:py-18 bg-surface-container-low relative overflow-hidden" id="projects">
+        {/* Animated Background Pattern */}
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-outline-variant/5 rounded-full"
+        />
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.h2 
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
-            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-6 md:mb-8"
+            className="font-headline text-3xl md:text-4xl font-bold text-primary mb-6 md:mb-8 relative inline-block"
           >
             <InlineText value={data.ui.sectionTitles.projects} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, projects: val } } })} />
+            <motion.span
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="absolute -bottom-2 left-0 right-0 h-1 bg-secondary/30 rounded-full origin-left"
+            />
           </motion.h2>
           <motion.div 
             initial="hidden"
@@ -1343,7 +1755,12 @@ export default function Portfolio() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-7"
           >
             {(showAllProjects ? data.projects : data.projects.slice(0, 4)).map((project, index) => (
-              <motion.div key={project.id} variants={fadeUp} className="group cursor-pointer relative max-w-[24rem] w-full">
+              <motion.div
+                key={project.id}
+                variants={fadeUp}
+                whileHover={{ y: -10 }}
+                className="group cursor-pointer relative max-w-[24rem] w-full"
+              >
                 {isEditMode && (
                   <button 
                     onClick={() => {
@@ -1356,8 +1773,23 @@ export default function Portfolio() {
                     <span className="material-symbols-outlined">delete</span>
                   </button>
                 )}
-                <div className="aspect-[16/10] rounded-xl overflow-hidden mb-3 md:mb-4 relative">
-                  <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+                <div className="aspect-[16/10] rounded-xl overflow-hidden mb-3 md:mb-4 relative shadow-lg">
+                  <motion.img
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ duration: 0.6 }}
+                    src={project.imageUrl}
+                    alt={project.title}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Gradient Overlay */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    whileHover={{ opacity: 1 }}
+                    className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent flex items-end p-4"
+                  >
+                    <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">View Details</span>
+                  </motion.div>
                   {isEditMode && (
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <input 
@@ -1442,14 +1874,21 @@ export default function Portfolio() {
           </motion.div>
           
           {data.projects.length > 4 && (
-            <div className="mt-12 text-center">
-              <button 
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mt-12 text-center"
+            >
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowAllProjects(!showAllProjects)}
-                className="bg-surface-container-highest text-primary px-8 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300"
+                className="bg-surface-container-highest text-primary px-8 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300 shadow-md"
               >
                 {showAllProjects ? "Show Less" : "View more other projects"}
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           )}
         </div>
       </section>
@@ -1457,44 +1896,120 @@ export default function Portfolio() {
 
       {/* Contact Me */}
       {showContactSection && (
-      <section className="py-16 md:py-24 bg-surface" id="contact">
-        <div className="container mx-auto px-6 md:px-12 lg:px-20">
+      <section className="py-16 md:py-24 bg-surface relative overflow-hidden" id="contact">
+        {/* Animated Background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.03, 0.06, 0.03]
+            }}
+            transition={{ duration: 10, repeat: Infinity }}
+            className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-secondary rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ 
+              scale: [1, 1.3, 1],
+              opacity: [0.02, 0.05, 0.02]
+            }}
+            transition={{ duration: 12, repeat: Infinity, delay: 2 }}
+            className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-primary rounded-full blur-3xl"
+          />
+        </div>
+
+        <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.div 
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
-            className="max-w-6xl mx-auto bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+            className="max-w-6xl mx-auto bg-surface-container-lowest rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row border border-outline-variant/20"
           >
-            <div className="md:w-1/2 p-8 md:p-12 bg-primary text-on-primary">
-              <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 md:mb-8">
-                <InlineText value={data.ui.sectionTitles.contact} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, contact: val } } })} />
-              </h2>
-              <div className="text-primary-fixed-dim mb-8 md:mb-12 text-base md:text-lg">
-                <InlineText multiline value={data.contact.intro} onChange={(val) => updateData({ contact: { ...data.contact, intro: val } })} />
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="md:w-1/2 p-8 md:p-12 bg-primary text-on-primary relative overflow-hidden"
+            >
+              {/* Decorative Elements */}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-20 -right-20 w-40 h-40 border-2 border-white/10 rounded-full"
+              />
+              <motion.div
+                animate={{ rotate: -360 }}
+                transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                className="absolute -bottom-10 -left-10 w-32 h-32 border border-white/10 rounded-full"
+              />
+              
+              <div className="relative z-10">
+                <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 md:mb-8">
+                  <InlineText value={data.ui.sectionTitles.contact} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, contact: val } } })} />
+                </h2>
+                <div className="text-primary-fixed-dim mb-8 md:mb-12 text-base md:text-lg">
+                  <InlineText multiline value={data.contact.intro} onChange={(val) => updateData({ contact: { ...data.contact, intro: val } })} />
+                </div>
+                <div className="space-y-4 md:space-y-6">
+                  <motion.div
+                    whileHover={{ x: 5 }}
+                    className="flex items-center gap-3 md:gap-4"
+                  >
+                    <motion.span
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.6 }}
+                      className="material-symbols-outlined text-secondary-fixed text-lg md:text-xl"
+                      data-icon="mail"
+                    >
+                      mail
+                    </motion.span>
+                    <span className="font-medium text-sm md:text-base">
+                      <InlineText value={data.contact.email} onChange={(val) => updateData({ contact: { ...data.contact, email: val } })} />
+                    </span>
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ x: 5 }}
+                    className="flex items-center gap-3 md:gap-4"
+                  >
+                    <motion.span
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.6 }}
+                      className="material-symbols-outlined text-secondary-fixed text-lg md:text-xl"
+                      data-icon="call"
+                    >
+                      call
+                    </motion.span>
+                    <span className="font-medium text-sm md:text-base">
+                      <InlineText value={data.contact.phone} onChange={(val) => updateData({ contact: { ...data.contact, phone: val } })} />
+                    </span>
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ x: 5 }}
+                    className="flex items-center gap-3 md:gap-4"
+                  >
+                    <motion.span
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.6 }}
+                      className="material-symbols-outlined text-secondary-fixed text-lg md:text-xl"
+                      data-icon="location_on"
+                    >
+                      location_on
+                    </motion.span>
+                    <span className="font-medium text-sm md:text-base">
+                      <InlineText value={data.contact.location} onChange={(val) => updateData({ contact: { ...data.contact, location: val } })} />
+                    </span>
+                  </motion.div>
+                </div>
               </div>
-              <div className="space-y-4 md:space-y-6">
-                <div className="flex items-center gap-3 md:gap-4">
-                  <span className="material-symbols-outlined text-secondary-fixed text-lg md:text-xl" data-icon="mail">mail</span>
-                  <span className="font-medium text-sm md:text-base">
-                    <InlineText value={data.contact.email} onChange={(val) => updateData({ contact: { ...data.contact, email: val } })} />
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 md:gap-4">
-                  <span className="material-symbols-outlined text-secondary-fixed text-lg md:text-xl" data-icon="call">call</span>
-                  <span className="font-medium text-sm md:text-base">
-                    <InlineText value={data.contact.phone} onChange={(val) => updateData({ contact: { ...data.contact, phone: val } })} />
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 md:gap-4">
-                  <span className="material-symbols-outlined text-secondary-fixed text-lg md:text-xl" data-icon="location_on">location_on</span>
-                  <span className="font-medium text-sm md:text-base">
-                    <InlineText value={data.contact.location} onChange={(val) => updateData({ contact: { ...data.contact, location: val } })} />
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="md:w-1/2 p-8 md:p-12">
+            </motion.div>
+            <motion.div
+              initial={{ x: 50, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="md:w-1/2 p-8 md:p-12"
+            >
               <form action="#" className="space-y-4 md:space-y-6" method="POST">
                 <div>
                   <label className="block text-xs md:text-sm font-label font-bold text-primary mb-1 md:mb-2">Name</label>
@@ -1508,9 +2023,16 @@ export default function Portfolio() {
                   <label className="block text-xs md:text-sm font-label font-bold text-primary mb-1 md:mb-2">How can I support you?</label>
                   <textarea className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base" placeholder="Tell me about your vision..." rows={4}></textarea>
                 </div>
-                <button className="w-full bg-primary text-on-primary py-3 md:py-4 rounded-lg font-bold text-sm md:text-base hover:bg-secondary transition-all duration-300" type="submit">Send Inquiry</button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-primary text-on-primary py-3 md:py-4 rounded-lg font-bold text-sm md:text-base hover:bg-secondary transition-all duration-300 shadow-lg"
+                  type="submit"
+                >
+                  Send Inquiry
+                </motion.button>
               </form>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
