@@ -6,7 +6,7 @@ import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { sileo } from 'sileo';
 import { auth, db, storage } from '../firebase';
-import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
+import { usePortfolioData, DEFAULT_SECTION_VISIBILITY, PortfolioSectionKey } from '../hooks/usePortfolioData';
 import { uploadToCloudinary } from '../utils/localUpload';
 import { IconPicker } from '../components/IconPicker';
 import { Footer } from '../components/Footer';
@@ -234,21 +234,33 @@ export default function Portfolio() {
     }
   };
 
-  const showExperienceSection = isEditMode || (data?.experience?.length || 0) > 0;
-  const showSkillsSection = isEditMode || (data?.expertiseCards?.length || 0) > 0 || (data?.skills?.length || 0) > 0;
-  const showEducationSection = isEditMode || (data?.education?.length || 0) > 0;
-  const showTrainingsSection = isEditMode || (data?.trainings?.length || 0) > 0;
-  const showCertificationsSection = isEditMode || (data?.certifications?.length || 0) > 0;
-  const showProjectsSection = isEditMode || (data?.projects?.length || 0) > 0;
+  const isSectionEnabled = (section: PortfolioSectionKey) => {
+    const configured = data?.ui?.sectionVisibility?.[section];
+    if (typeof configured === 'boolean') return configured;
+    return DEFAULT_SECTION_VISIBILITY[section];
+  };
+
+  const showHomeSection = isSectionEnabled('home');
+  const showAboutSection = isSectionEnabled('about');
+  const showExperienceSection = isSectionEnabled('experience') && (isEditMode || (data?.experience?.length || 0) > 0);
+  const showSkillsSection = isSectionEnabled('skills') && (isEditMode || (data?.expertiseCards?.length || 0) > 0 || (data?.skills?.length || 0) > 0);
+  const showEducationSection = isSectionEnabled('education') && (isEditMode || (data?.education?.length || 0) > 0);
+  const showTrainingsSection = isSectionEnabled('trainings') && (isEditMode || (data?.trainings?.length || 0) > 0);
+  const showCertificationsSection = isSectionEnabled('certifications') && (isEditMode || (data?.certifications?.length || 0) > 0);
+  const showProjectsSection = isSectionEnabled('projects') && (isEditMode || (data?.projects?.length || 0) > 0);
   const showContactSection =
-    isEditMode ||
-    Boolean(data?.contact?.intro || data?.contact?.email || data?.contact?.phone || data?.contact?.location);
+    isSectionEnabled('contact') &&
+    (isEditMode ||
+      Boolean(data?.contact?.intro || data?.contact?.email || data?.contact?.phone || data?.contact?.location));
 
   const visibleNavLinks = (data?.ui?.navLinks || []).filter((item) => {
+    if (item.id === 'home') return showHomeSection;
+    if (item.id === 'about') return showAboutSection;
     if (item.id === 'experience') return showExperienceSection;
     if (item.id === 'skills') return showSkillsSection;
     if (item.id === 'education') return showEducationSection;
     if (item.id === 'trainings') return showTrainingsSection;
+    if (item.id === 'certifications') return showCertificationsSection;
     if (item.id === 'projects') return showProjectsSection;
     if (item.id === 'contact') return showContactSection;
     return true;
@@ -314,6 +326,16 @@ export default function Portfolio() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useEffect(() => {
+    const visibleIds = visibleNavLinks
+      .map((item) => (item.href || '').replace('#', ''))
+      .filter(Boolean);
+
+    if (visibleIds.length > 0 && !visibleIds.includes(activeSection)) {
+      setActiveSection(visibleIds[0]);
+    }
+  }, [activeSection, visibleNavLinks]);
 
   useEffect(() => {
     const sectionIds = visibleNavLinks
@@ -593,6 +615,7 @@ export default function Portfolio() {
       </motion.button>
 
       {/* Hero Section */}
+      {showHomeSection && (
       <section className="relative min-h-[calc(100svh-1.5rem)] flex items-center pt-20 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-gradient-to-br from-surface via-surface-container-low to-surface" id="hero">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -910,8 +933,10 @@ export default function Portfolio() {
           </motion.div>
         </div>
       </section>
+      )}
 
       {/* About Me */}
+      {showAboutSection && (
       <section className="py-16 md:py-24 bg-surface-container-low relative overflow-hidden" id="about">
         {/* Top Gradient Blend - Stronger */}
         <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-surface via-surface-container-low/80 to-transparent pointer-events-none z-[5]"></div>
@@ -984,6 +1009,7 @@ export default function Portfolio() {
           </motion.div>
         </div>
       </section>
+      )}
 
       {/* Experience - Timeline */}
       {showExperienceSection && (

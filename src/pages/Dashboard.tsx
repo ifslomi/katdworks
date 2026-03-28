@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { sileo } from 'sileo';
 import { auth, db } from '../firebase';
 import { doc, getDoc, collection, getDocs, orderBy, query, limit, addDoc, serverTimestamp } from 'firebase/firestore';
-import { usePortfolioData, PortfolioData } from '../hooks/usePortfolioData';
+import { usePortfolioData, PortfolioData, DEFAULT_SECTION_VISIBILITY, PortfolioSectionKey } from '../hooks/usePortfolioData';
 import { IconPicker } from '../components/IconPicker';
 import { uploadToCloudinary } from '../utils/localUpload';
 
@@ -462,6 +462,23 @@ export default function Dashboard() {
     } : null);
   };
 
+  const handleSectionVisibilityChange = (section: PortfolioSectionKey, isEnabled: boolean) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        ui: {
+          ...prev.ui,
+          sectionVisibility: {
+            ...DEFAULT_SECTION_VISIBILITY,
+            ...prev.ui.sectionVisibility,
+            [section]: isEnabled,
+          },
+        },
+      };
+    });
+  };
+
   const handleAddCertification = () => {
     setFormData(prev => {
       if (!prev) return null;
@@ -608,6 +625,10 @@ export default function Dashboard() {
   }
 
   const selectedDailyStats = dailyStats.slice(-analyticsRange);
+  const sectionVisibility = {
+    ...DEFAULT_SECTION_VISIBILITY,
+    ...(formData.ui.sectionVisibility || {}),
+  };
   const rangeViews = selectedDailyStats.reduce((sum, day) => sum + (day.views || 0), 0);
   const rangeDownloads = selectedDailyStats.reduce((sum, day) => sum + (day.downloads || 0), 0);
   const rangeBottomScrolls = selectedDailyStats.reduce((sum, day) => sum + (day.bottomScrolls || 0), 0);
@@ -868,7 +889,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="branding_watermark">branding_watermark</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Branding &amp; Navigation</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Branding &amp; Navigation</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Edit the brand labels and logos used in the top navigation and footer.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -931,43 +955,102 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="label">label</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Section Headings</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Section Headings</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Set section titles and use each slider to show or hide that section on the public site.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">About Heading</label>
-                    <input value={formData.ui.sectionTitles.about} onChange={(e) => handleSectionTitleChange('about', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">About Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.about} onChange={(e) => handleSectionVisibilityChange('about', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.about} onChange={(e) => handleSectionTitleChange('about', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Experience Heading</label>
-                    <input value={formData.ui.sectionTitles.experience} onChange={(e) => handleSectionTitleChange('experience', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Experience Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.experience} onChange={(e) => handleSectionVisibilityChange('experience', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.experience} onChange={(e) => handleSectionTitleChange('experience', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Skills Heading</label>
-                    <input value={formData.ui.sectionTitles.skills} onChange={(e) => handleSectionTitleChange('skills', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Skills Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.skills} onChange={(e) => handleSectionVisibilityChange('skills', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.skills} onChange={(e) => handleSectionTitleChange('skills', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Education Heading</label>
-                    <input value={formData.ui.sectionTitles.education} onChange={(e) => handleSectionTitleChange('education', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Education Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.education} onChange={(e) => handleSectionVisibilityChange('education', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.education} onChange={(e) => handleSectionTitleChange('education', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Trainings Heading</label>
-                    <input value={formData.ui.sectionTitles.trainings} onChange={(e) => handleSectionTitleChange('trainings', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Trainings Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.trainings} onChange={(e) => handleSectionVisibilityChange('trainings', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.trainings} onChange={(e) => handleSectionTitleChange('trainings', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Projects Heading</label>
-                    <input value={formData.ui.sectionTitles.projects} onChange={(e) => handleSectionTitleChange('projects', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Projects Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.projects} onChange={(e) => handleSectionVisibilityChange('projects', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.projects} onChange={(e) => handleSectionTitleChange('projects', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Contact Heading</label>
-                    <input value={formData.ui.sectionTitles.contact} onChange={(e) => handleSectionTitleChange('contact', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Contact Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.contact} onChange={(e) => handleSectionVisibilityChange('contact', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.sectionTitles.contact} onChange={(e) => handleSectionTitleChange('contact', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                   <div>
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certifications Heading</label>
-                    <input value={formData.ui.certificationsTitle} onChange={(e) => handleBrandingChange('certificationsTitle', e.target.value)} className="w-full bg-transparent border-none rounded-lg p-0 text-3xl md:text-4xl font-headline font-bold text-primary focus:ring-0" type="text" />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Certifications Heading</label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                        <input type="checkbox" checked={sectionVisibility.certifications} onChange={(e) => handleSectionVisibilityChange('certifications', e.target.checked)} className="sr-only peer" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      </label>
+                    </div>
+                    <input value={formData.ui.certificationsTitle} onChange={(e) => handleBrandingChange('certificationsTitle', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
                   </div>
                 </div>
               </div>
@@ -978,13 +1061,23 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="auto_awesome">auto_awesome</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Hero &amp; Identity</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Hero &amp; Identity</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Control the homepage headline, sub-headline, intro, profile visual, and downloadable portfolio PDF.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50 space-y-6">
                 <div className="mt-6">
-                  <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Portfolio Headline</label>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Portfolio Headline</label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
+                      <input type="checkbox" checked={sectionVisibility.home} onChange={(e) => handleSectionVisibilityChange('home', e.target.checked)} className="sr-only peer" />
+                      <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                    </label>
+                  </div>
                   <input
                     name="headline"
                     value={formData.hero.headline}
@@ -1000,7 +1093,7 @@ export default function Dashboard() {
                       name="subheadline"
                       value={formData.hero.subheadline}
                       onChange={handleHeroChange}
-                      className="w-full bg-transparent border-none rounded-lg p-0 font-headline text-3xl md:text-4xl font-black text-primary leading-tight -tracking-wider focus:ring-0"
+                      className="w-full bg-transparent border-none rounded-lg px-0 py-1 font-headline text-2xl md:text-3xl lg:text-4xl font-black text-primary leading-tight tracking-tight focus:ring-0"
                       type="text"
                     />
                   </div>
@@ -1100,7 +1193,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="history_edu">history_edu</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">About &amp; Philosophy</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">About &amp; Philosophy</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Update your personal quote and biography paragraphs shown in the About section.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1135,7 +1231,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="work">work</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Experience</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Experience</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Manage timeline entries like role title, company, period, and description.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1169,7 +1268,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="school">school</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Education</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Education</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Edit academic entries including program, school, date range, and details.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1202,7 +1304,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Trainings and Seminars</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Trainings and Seminars</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Maintain training records with provider, date, and supporting notes.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1235,7 +1340,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="contact_phone">contact_phone</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Contact Details</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Contact Details</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Set the public contact intro and the core channels visitors can use to reach you.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1266,7 +1374,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="verified">verified</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Key Expertise</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Key Expertise</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Add short skill tags used in your expertise and tech stack presentation.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1291,7 +1402,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Certifications</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Certifications</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Manage certification cards, icon style, color theme, and image proof uploads.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1358,7 +1472,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="grid_view">grid_view</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Expertise Cards</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Expertise Cards</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Edit featured capability cards with icon, title, and descriptive copy.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
@@ -1389,7 +1506,10 @@ export default function Dashboard() {
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="folder_special">folder_special</span>
-                  <h3 className="font-headline font-bold text-lg text-primary">Featured Projects</h3>
+                  <div>
+                    <h3 className="font-headline font-bold text-lg text-primary">Featured Projects</h3>
+                    <p className="mt-0.5 text-xs text-secondary leading-relaxed">Maintain project showcase content including images, links, tags, metrics, and CTA labels.</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>

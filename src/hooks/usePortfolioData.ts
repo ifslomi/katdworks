@@ -48,6 +48,29 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+export type PortfolioSectionKey =
+  | 'home'
+  | 'about'
+  | 'experience'
+  | 'skills'
+  | 'education'
+  | 'trainings'
+  | 'projects'
+  | 'contact'
+  | 'certifications';
+
+export const DEFAULT_SECTION_VISIBILITY: Record<PortfolioSectionKey, boolean> = {
+  home: true,
+  about: true,
+  experience: true,
+  skills: true,
+  education: true,
+  trainings: true,
+  projects: true,
+  contact: true,
+  certifications: true,
+};
+
 export interface PortfolioData {
   ui: {
     navTitle: string;
@@ -66,6 +89,7 @@ export interface PortfolioData {
       projects: string;
       contact: string;
     };
+    sectionVisibility?: Partial<Record<PortfolioSectionKey, boolean>>;
     navLinks: {
       id: string;
       label: string;
