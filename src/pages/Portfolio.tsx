@@ -684,7 +684,7 @@ export default function Portfolio() {
                   className="absolute -bottom-2 left-0 h-1 bg-secondary/30 rounded-full"
                 />
               </span>
-              :<br />
+              <br />
               <span className="relative inline-block">
                 <InlineText value={data.hero.subheadline} onChange={(val) => updateData({ hero: { ...data.hero, subheadline: val } })} />
                 <motion.span
