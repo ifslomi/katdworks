@@ -51,6 +51,8 @@ export default function Dashboard() {
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const lastEditToastAtRef = useRef(0);
   const uploadMilestonesRef = useRef<Record<string, number[]>>({});
+  const uploadDropzoneClass = 'flex items-center gap-4 bg-surface-container-low p-3 rounded-lg border-2 border-dashed border-outline-variant/30 cursor-pointer hover:border-outline-variant/60';
+  const uploadDeleteActionClass = 'ml-auto text-[10px] font-bold text-error hover:opacity-80 underline';
 
   const handleFileUpload = async (file: File, path: string, onComplete: (url: string) => void, progressKey?: string) => {
     if (!file) return;
@@ -687,8 +689,17 @@ export default function Dashboard() {
         <div className="mt-auto pt-8 border-t border-outline-variant/20">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center">
-                <span className="font-headline font-bold text-on-secondary-container">{user?.email?.charAt(0).toUpperCase() || 'A'}</span>
+              <div className="w-10 h-10 rounded-full bg-secondary-container overflow-hidden border border-outline-variant/30 flex items-center justify-center">
+                {formData.hero.imageUrl ? (
+                  <img
+                    src={formData.hero.imageUrl}
+                    alt="Admin profile"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="font-headline font-bold text-on-secondary-container">{user?.email?.charAt(0).toUpperCase() || 'A'}</span>
+                )}
               </div>
               <div className="overflow-hidden">
                 <p className="text-xs font-bold text-primary truncate">{user?.email}</p>
@@ -921,7 +932,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Navigation Logo</label>
-                    <div onClick={() => fileInputRefs.current['navLogo']?.click()} className="flex items-center gap-4 bg-surface-container-low p-3 rounded-lg border-2 border-dashed border-outline-variant/30 cursor-pointer hover:border-outline-variant/60">
+                    <div onClick={() => fileInputRefs.current['navLogo']?.click()} className={uploadDropzoneClass}>
                       {formData.ui.navLogoUrl ? (
                          <img src={formData.ui.navLogoUrl} className="h-6 w-auto object-contain" alt="Nav Logo"/>
                       ) : (
@@ -945,7 +956,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Footer Logo</label>
-                    <div onClick={() => fileInputRefs.current['footerLogo']?.click()} className="flex items-center gap-4 bg-surface-container-low p-3 rounded-lg border-2 border-dashed border-outline-variant/30 cursor-pointer hover:border-outline-variant/60">
+                    <div onClick={() => fileInputRefs.current['footerLogo']?.click()} className={uploadDropzoneClass}>
                       {formData.ui.footerLogoUrl ? (
                         <img src={formData.ui.footerLogoUrl} className="h-6 w-auto object-contain" alt="Footer Logo" />
                       ) : (
@@ -1116,35 +1127,34 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Portfolio PDF</label>
-                    <div className="flex items-center justify-between bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
-                      <span className="text-xs text-primary font-medium truncate w-4/5">
+                    <div
+                      onClick={() => fileInputRefs.current['portfolioPdf']?.click()}
+                      className={uploadDropzoneClass}
+                    >
+                      <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                      <span className="text-xs text-secondary truncate">
                         {uploadProgress['portfolioPdf'] !== undefined
                           ? `Uploading PDF... ${Math.round(uploadProgress['portfolioPdf'])}%`
-                          : (formData.portfolioPdfUrl ? 'Linked PDF (Active)' : 'No PDF Uploaded')}
+                          : (formData.portfolioPdfUrl ? 'Change Portfolio PDF (.pdf)' : 'Upload Portfolio PDF (.pdf)')}
                       </span>
-                      <div className="flex items-center gap-3">
+                      <div className="ml-auto flex items-center gap-3">
                         {formData.portfolioPdfUrl && (
                           <button
-                            onClick={() => {
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              event.preventDefault();
                               setFormData(prev => prev ? { ...prev, portfolioPdfUrl: '' } : null);
                               sileo.info({
                                 title: 'Portfolio PDF removed',
                                 description: 'The linked PDF has been removed from this draft.'
                               });
                             }}
-                            className="text-[10px] font-bold text-error hover:opacity-80 underline"
+                            className={uploadDeleteActionClass}
                             type="button"
                           >
                             Delete
                           </button>
                         )}
-                        <button
-                          onClick={() => fileInputRefs.current['portfolioPdf']?.click()}
-                          className="text-[10px] font-bold text-secondary hover:text-primary underline"
-                          type="button"
-                        >
-                          {uploadProgress['portfolioPdf'] !== undefined ? 'Uploading...' : (formData.portfolioPdfUrl ? 'Replace' : 'Upload')}
-                        </button>
                       </div>
                       <input
                         type="file"
@@ -1176,31 +1186,40 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Profile Visual</label>
-                  <div className="flex items-center gap-6 p-4 bg-primary/5 border border-primary/10 rounded-xl">
-                    <div className="w-20 h-20 rounded bg-primary/10 flex items-center justify-center border border-outline-variant/20 overflow-hidden">
-                      {formData.hero.imageUrl ? (
-                        <img src={formData.hero.imageUrl} className="w-full h-full object-cover" alt="Profile Visual" />
-                      ) : (
-                        <span className="material-symbols-outlined text-primary/40 text-3xl" data-icon="image">image</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <button onClick={() => fileInputRefs.current['heroImage']?.click()} className="px-4 py-1.5 bg-primary text-on-primary text-[10px] font-bold rounded uppercase tracking-wider">
-                          {uploadProgress['heroImage'] !== undefined
-                            ? `Uploading ${Math.round(uploadProgress['heroImage'])}%`
-                            : (formData.hero.imageUrl ? 'Change' : 'Upload')}
-                        </button>
-                        <button onClick={() => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: ''}} : null)} className="px-4 py-1.5 bg-white border border-error/20 text-error text-[10px] font-bold rounded uppercase tracking-wider hover:bg-error/5">Delete</button>
-                        <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['heroImage'] = el} onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(file, 'images', (url) => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: url}} : null), 'heroImage');
-                          e.currentTarget.value = '';
-                        }} />
-                      </div>
-                      <p className="text-[10px] text-secondary">Recommended: 1200x1500px high-contrast portrait.</p>
-                    </div>
+                  <div
+                    onClick={() => fileInputRefs.current['heroImage']?.click()}
+                    className={uploadDropzoneClass}
+                  >
+                    {formData.hero.imageUrl ? (
+                      <img src={formData.hero.imageUrl} className="h-9 w-9 rounded object-cover" alt="Profile Visual" />
+                    ) : (
+                      <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                    )}
+                    <span className="text-xs text-secondary truncate">
+                      {uploadProgress['heroImage'] !== undefined
+                        ? `Uploading... ${Math.round(uploadProgress['heroImage'])}%`
+                        : (formData.hero.imageUrl ? 'Change Profile Image (.png, .jpg)' : 'Upload Profile Image (.png, .jpg)')}
+                    </span>
+                    {formData.hero.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          event.preventDefault();
+                          setFormData(prev => prev ? { ...prev, hero: { ...prev.hero, imageUrl: '' } } : null);
+                        }}
+                        className={uploadDeleteActionClass}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['heroImage'] = el} onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'images', (url) => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: url}} : null), 'heroImage');
+                      e.currentTarget.value = '';
+                    }} />
                   </div>
+                  <p className="mt-2 text-[10px] text-secondary">Recommended: 1200x1500px high-contrast portrait.</p>
                 </div>
               </div>
             </details>
@@ -1468,20 +1487,41 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certificate Image Upload</label>
-                            <div className="flex items-center justify-between bg-white p-2 rounded">
-                              <span className="text-[10px] text-primary truncate px-2">
+                            <div
+                              onClick={() => document.getElementById(`cert-img-upload-${cert.id}`)?.click()}
+                              className={uploadDropzoneClass}
+                            >
+                              {cert.imageUrl ? (
+                                <img src={cert.imageUrl} className="h-9 w-9 rounded object-cover" alt="Certificate" />
+                              ) : (
+                                <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                              )}
+                              <span className="text-xs text-secondary truncate">
                                 {uploadProgress[`cert-${cert.id}`] !== undefined
                                   ? `Uploading... ${Math.round(uploadProgress[`cert-${cert.id}`])}%`
-                                  : (cert.imageUrl ? 'Certificate Uploaded' : 'No Image')}
+                                  : (cert.imageUrl ? 'Change Certificate Image (.png, .jpg)' : 'Upload Certificate Image (.png, .jpg)')}
                               </span>
+                              {cert.imageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    event.preventDefault();
+                                    setFormData(prev => prev ? {
+                                      ...prev,
+                                      certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, imageUrl: '' } : c)
+                                    } : null);
+                                  }}
+                                  className={uploadDeleteActionClass}
+                                >
+                                  Delete
+                                </button>
+                              )}
                               <input type="file" accept="image/*" className="hidden" id={`cert-img-upload-${cert.id}`} onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) handleFileUpload(file, 'certificates', (url) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, imageUrl: url} : c)} : null), `cert-${cert.id}`);
                                 e.currentTarget.value = '';
                               }} />
-                              <button onClick={() => document.getElementById(`cert-img-upload-${cert.id}`)?.click()} className="text-[10px] font-bold text-secondary underline">
-                                {uploadProgress[`cert-${cert.id}`] !== undefined ? 'Uploading...' : (cert.imageUrl ? 'Replace' : 'Upload')}
-                              </button>
                             </div>
                           </div>
                         </div>
@@ -1543,22 +1583,49 @@ export default function Dashboard() {
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
                 <div className="mt-6 space-y-6">
                   {formData.projects && formData.projects.map((project) => (
-                    <div key={project.id} className="bg-white border border-outline-variant/20 p-4 rounded-xl flex gap-4">
-                      <div className="w-24 h-24 bg-surface-container-low rounded-lg overflow-hidden border border-outline-variant/10 relative group">
-                        {project.imageUrl ? (
-                          <img src={project.imageUrl} className="w-full h-full object-cover" alt="Project" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-outline-variant">
-                            <span className="material-symbols-outlined" data-icon="image">image</span>
-                          </div>
-                        )}
-                        <input type="file" accept="image/*" className="hidden" id={`proj-img-${project.id}`} onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(file, 'projects', (url) => handleProjectChange(project.id, 'imageUrl', url), `project-${project.id}`);
-                          e.currentTarget.value = '';
-                        }} />
-                      </div>
-                      <div className="flex-1 space-y-2">
+                    <div key={project.id} className="bg-white border border-outline-variant/20 p-4 rounded-xl relative">
+                      <button
+                        onClick={() => handleRemoveProject(project.id)}
+                        className="absolute top-3 right-3 text-secondary hover:text-error"
+                        title="Delete project"
+                        type="button"
+                      >
+                        <span className="material-symbols-outlined" data-icon="delete">delete</span>
+                      </button>
+                      <div className="space-y-3 pr-8">
+                        <div
+                          onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()}
+                          className={uploadDropzoneClass}
+                        >
+                          {project.imageUrl ? (
+                            <img src={project.imageUrl} className="h-9 w-9 rounded object-cover" alt="Project" />
+                          ) : (
+                            <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                          )}
+                          <span className="text-xs text-secondary truncate">
+                            {uploadProgress[`project-${project.id}`] !== undefined
+                              ? `Uploading... ${Math.round(uploadProgress[`project-${project.id}`])}%`
+                              : (project.imageUrl ? 'Change Project Image (.png, .jpg)' : 'Upload Project Image (.png, .jpg)')}
+                          </span>
+                          {project.imageUrl && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                handleProjectChange(project.id, 'imageUrl', '');
+                              }}
+                              className={uploadDeleteActionClass}
+                            >
+                              Delete
+                            </button>
+                          )}
+                          <input type="file" accept="image/*" className="hidden" id={`proj-img-${project.id}`} onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'projects', (url) => handleProjectChange(project.id, 'imageUrl', url), `project-${project.id}`);
+                            e.currentTarget.value = '';
+                          }} />
+                        </div>
                         <input className="w-full bg-surface-container-low border-none rounded p-2 font-bold text-sm text-primary" type="text" value={project.title} onChange={(e) => handleProjectChange(project.id, 'title', e.target.value)} placeholder="Project Title" />
                         <textarea className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-on-surface-variant" rows={2} value={project.description} onChange={(e) => handleProjectChange(project.id, 'description', e.target.value)} placeholder="Project Description"></textarea>
                         <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.link} onChange={(e) => handleProjectChange(project.id, 'link', e.target.value)} placeholder="Project Link (URL)" />
@@ -1579,10 +1646,6 @@ export default function Dashboard() {
                           }}
                           placeholder="Tags (comma separated)"
                         />
-                      </div>
-                      <div className="flex flex-col justify-between">
-                        <button onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()} className="text-secondary hover:text-primary" title={uploadProgress[`project-${project.id}`] !== undefined ? `Uploading ${Math.round(uploadProgress[`project-${project.id}`])}%` : 'Upload image'}><span className="material-symbols-outlined" data-icon="upload">upload</span></button>
-                        <button onClick={() => handleRemoveProject(project.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
                       </div>
                     </div>
                   ))}
