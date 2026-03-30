@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type MouseEvent } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
@@ -63,10 +63,10 @@ function InlineText({ value, onChange, className, multiline = false }: { value: 
 }
 
 export default function Portfolio() {
-  const location = useLocation();
   const { data, loading, updateData, readError } = usePortfolioData();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -78,9 +78,7 @@ export default function Portfolio() {
   const moreMeasureRef = useRef<HTMLSpanElement | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [desktopPrimaryCount, setDesktopPrimaryCount] = useState(5);
-  const isAdminPreview = new URLSearchParams(location.search).get('adminPreview') === '1';
 
-  
   // ANALYTICS TRACKING
   useEffect(() => {
     const ensureDocs = async () => {
@@ -162,10 +160,36 @@ export default function Portfolio() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAdmin(!!user);
+    let active = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!active) return;
+
+      if (!user) {
+        setIsAdmin(false);
+        setAuthResolved(true);
+        return;
+      }
+
+      try {
+        await user.getIdToken(true);
+        if (!active) return;
+        setIsAdmin(true);
+      } catch (error) {
+        console.warn('Failed to refresh auth token for portfolio controls.', error);
+        if (!active) return;
+        setIsAdmin(false);
+      } finally {
+        if (active) {
+          setAuthResolved(true);
+        }
+      }
     });
-    return () => unsubscribe();
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const handleFileUpload = async (
@@ -495,7 +519,7 @@ export default function Portfolio() {
           Live content could not be loaded from Firestore.
         </div>
       )}
-      {isAdmin && (
+      {authResolved && isAdmin && (
         <div className="fixed bottom-4 left-4 z-50 flex gap-2">
           <button 
             onClick={() => setIsEditMode(!isEditMode)}
@@ -671,24 +695,19 @@ export default function Portfolio() {
           </details>
         </motion.div>
         <div ref={navRightRef} className="flex items-center justify-end">
-          {isAdmin && isAdminPreview ? (
-            <motion.button
+          {isAdmin ? (
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              type="button"
-              onClick={() => {
-                sileo.info({
-                  title: 'Already logged in',
-                  description: 'You are in admin preview mode. Return to Dashboard to continue editing or logout.'
-                });
-              }}
-              className="bg-primary/70 text-on-primary px-6 py-2 rounded-lg font-label font-bold transition-transform cursor-not-allowed"
             >
-              Login
-            </motion.button>
+              <Link
+                to="/dashboard"
+                className="inline-block bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
+              >
+                Dashboard
+              </Link>
+            </motion.div>
           ) : (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
