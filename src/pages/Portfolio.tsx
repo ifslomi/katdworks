@@ -1068,6 +1068,22 @@ export default function Portfolio() {
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-20 right-10 w-72 h-72 bg-primary rounded-full blur-3xl opacity-5" />
           <div className="absolute -bottom-20 -left-20 w-96 h-96 border border-outline-variant/10 rounded-full" style={{ animation: 'spin 50s linear infinite' }} />
+          {/* Additional decorative elements for the right side */}
+          <motion.div
+            animate={{ y: [0, -30, 0], rotate: [0, 10, 0] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-32 right-20 w-40 h-40 border-2 border-secondary/10 rounded-xl rotate-12"
+          />
+          <motion.div
+            animate={{ y: [0, 20, 0], rotate: [0, -15, 0] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute bottom-40 right-32 w-24 h-24 bg-tertiary-container/20 rounded-full"
+          />
+          <motion.div
+            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+            className="absolute top-1/2 right-10 w-32 h-32 bg-secondary/5 rounded-lg rotate-45"
+          />
         </div>
         
         {/* Bottom Gradient Blend */}
@@ -1079,7 +1095,7 @@ export default function Portfolio() {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={staggerContainer}
-            className="max-w-4xl"
+            className="max-w-7xl mx-auto"
           >
             <motion.h2 variants={fadeUp} className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12 relative inline-block">
               <InlineText value={data.ui.sectionTitles.about} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, about: val } } })} />
@@ -1091,43 +1107,152 @@ export default function Portfolio() {
                 className="absolute -bottom-2 left-0 h-1 bg-secondary/40 rounded-full"
               />
             </motion.h2>
-            <div className="grid md:grid-cols-2 gap-8 md:gap-12">
-              <div className="text-lg md:text-xl font-headline italic text-on-surface-variant leading-relaxed relative pl-6 border-l-4 border-secondary/30">
-                "<InlineText multiline value={data.about.quote} onChange={(val) => updateData({ about: { ...data.about, quote: val } })} />"
+            <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 xl:gap-16">
+              <div className="flex-1 space-y-8">
+                <div className="text-lg md:text-xl font-headline italic text-on-surface-variant leading-relaxed relative pl-6 border-l-4 border-secondary/30">
+                  "<InlineText multiline value={data.about.quote} onChange={(val) => updateData({ about: { ...data.about, quote: val } })} />"
+                </div>
+                <motion.div variants={fadeUp} className="space-y-4 md:space-y-6 text-on-surface text-base leading-relaxed">
+                  {data.about.paragraphs.map((p, i) => (
+                    <div key={i} className="relative group">
+                      <InlineText multiline value={p} onChange={(val) => {
+                        const newParas = [...data.about.paragraphs];
+                        newParas[i] = val;
+                        updateData({ about: { ...data.about, paragraphs: newParas } });
+                      }} />
+                      {isEditMode && (
+                        <button 
+                          onClick={() => {
+                            const newParas = data.about.paragraphs.filter((_, idx) => idx !== i);
+                            updateData({ about: { ...data.about, paragraphs: newParas } });
+                          }}
+                          className="absolute -right-10 top-0 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove Paragraph"
+                        >
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {isEditMode && (
+                    <button 
+                      onClick={() => {
+                        updateData({ about: { ...data.about, paragraphs: [...data.about.paragraphs, "New paragraph..."] } });
+                      }}
+                      className="text-primary font-bold text-sm hover:underline flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-sm">add</span> Add Paragraph
+                    </button>
+                  )}
+                </motion.div>
               </div>
-              <motion.div variants={fadeUp} className="space-y-4 md:space-y-6 text-on-surface text-base leading-relaxed">
-                {data.about.paragraphs.map((p, i) => (
-                  <div key={i} className="relative group">
-                    <InlineText multiline value={p} onChange={(val) => {
-                      const newParas = [...data.about.paragraphs];
-                      newParas[i] = val;
-                      updateData({ about: { ...data.about, paragraphs: newParas } });
-                    }} />
+              {data.about.imageUrl && (
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                  className="relative group lg:w-[420px] xl:w-[480px] flex-shrink-0"
+                >
+                  {/* Decorative frame elements */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 0.15, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="absolute -bottom-6 -right-6 w-full h-full bg-secondary-container rounded-xl -z-10"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, delay: 0.5 }}
+                    className="absolute -top-6 -left-6 w-32 h-32 border-4 border-primary/20 rounded-full -z-10"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.7 }}
+                    className="absolute top-0 right-0 w-24 h-24 border-t-4 border-r-4 border-secondary rounded-tr-xl"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.8 }}
+                    className="absolute bottom-0 left-0 w-24 h-24 border-b-4 border-l-4 border-secondary rounded-bl-xl"
+                  />
+                  
+                  <div className="aspect-[3/4] rounded-xl overflow-hidden shadow-2xl relative z-10">
+                    <motion.img
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ duration: 0.4 }}
+                      src={data.about.imageUrl}
+                      alt="About Me"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                     {isEditMode && (
-                      <button 
-                        onClick={() => {
-                          const newParas = data.about.paragraphs.filter((_, idx) => idx !== i);
-                          updateData({ about: { ...data.about, paragraphs: newParas } });
-                        }}
-                        className="absolute -right-10 top-0 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remove Paragraph"
-                      >
-                        <span className="material-symbols-outlined">delete</span>
-                      </button>
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <input 
+                          type="file"
+                          accept="image/*"
+                          ref={el => fileInputRefs.current['aboutImage'] = el}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'images', (url) => updateData({ about: { ...data.about, imageUrl: url } }));
+                            e.currentTarget.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        <div className="flex flex-col gap-2">
+                          <button 
+                            onClick={() => fileInputRefs.current['aboutImage']?.click()}
+                            className="bg-white text-primary px-4 py-2 rounded-full font-bold text-sm"
+                          >
+                            {uploadProgress['images'] !== undefined ? `Uploading... ${Math.round(uploadProgress['images'])}%` : 'Change'}
+                          </button>
+                          <button 
+                            onClick={() => updateData({ about: { ...data.about, imageUrl: '' } })}
+                            className="bg-error text-white px-4 py-2 rounded-full font-bold text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                ))}
-                {isEditMode && (
+                </motion.div>
+              )}
+              {isEditMode && !data.about.imageUrl && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="lg:w-[420px] xl:w-[480px] flex-shrink-0"
+                >
                   <button 
-                    onClick={() => {
-                      updateData({ about: { ...data.about, paragraphs: [...data.about.paragraphs, "New paragraph..."] } });
-                    }}
-                    className="text-primary font-bold text-sm hover:underline flex items-center gap-1"
+                    onClick={() => fileInputRefs.current['aboutImage']?.click()}
+                    className="w-full aspect-[3/4] rounded-xl border-2 border-dashed border-outline-variant/50 hover:border-primary transition-colors flex items-center justify-center bg-surface-container-lowest/50"
                   >
-                    <span className="material-symbols-outlined text-sm">add</span> Add Paragraph
+                    <div className="text-center">
+                      <span className="material-symbols-outlined text-4xl text-primary mb-2 block">add_photo_alternate</span>
+                      <p className="font-bold text-primary">Add About Me Picture</p>
+                    </div>
                   </button>
-                )}
-              </motion.div>
+                  <input 
+                    type="file"
+                    accept="image/*"
+                    ref={el => fileInputRefs.current['aboutImage'] = el}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'images', (url) => updateData({ about: { ...data.about, imageUrl: url } }));
+                      e.currentTarget.value = '';
+                    }}
+                    className="hidden"
+                  />
+                </motion.div>
+              )}
             </div>
           </motion.div>
         </div>

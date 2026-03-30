@@ -118,6 +118,7 @@ export interface PortfolioData {
   about: {
     quote: string;
     paragraphs: string[];
+    imageUrl?: string;
   };
   experience: {
     id: string;

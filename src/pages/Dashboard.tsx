@@ -1242,6 +1242,43 @@ export default function Dashboard() {
                   <textarea value={formData.about.quote} onChange={(e) => setFormData(prev => prev ? {...prev, about: {...prev.about, quote: e.target.value}} : null)} className="w-full bg-surface-container-low border-none rounded-lg p-4 font-headline italic text-primary focus:ring-2 focus:ring-secondary/20" rows={2}></textarea>
                 </div>
                 <div>
+                  <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">About Me Picture</label>
+                  <div
+                    onClick={() => fileInputRefs.current['aboutImage']?.click()}
+                    className={uploadDropzoneClass}
+                  >
+                    {formData.about.imageUrl ? (
+                      <img src={formData.about.imageUrl} className="h-9 w-9 rounded object-cover" alt="About Me" />
+                    ) : (
+                      <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                    )}
+                    <span className="text-xs text-secondary truncate">
+                      {uploadProgress['aboutImage'] !== undefined
+                        ? `Uploading... ${Math.round(uploadProgress['aboutImage'])}%`
+                        : (formData.about.imageUrl ? 'Change About Image (.png, .jpg)' : 'Upload About Image (.png, .jpg)')}
+                    </span>
+                    {formData.about.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          event.preventDefault();
+                          setFormData(prev => prev ? { ...prev, about: { ...prev.about, imageUrl: '' } } : null);
+                        }}
+                        className={uploadDeleteActionClass}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['aboutImage'] = el} onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'images', (url) => setFormData(prev => prev ? {...prev, about: {...prev.about, imageUrl: url}} : null), 'aboutImage');
+                      e.currentTarget.value = '';
+                    }} />
+                  </div>
+                  <p className="mt-2 text-[10px] text-secondary">Recommended: High-quality image that represents you or your work.</p>
+                </div>
+                <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Biography Paragraphs</label>
                     <button onClick={addBioParagraph} className="text-[10px] font-bold text-primary flex items-center gap-1 hover:underline">
@@ -1349,7 +1386,7 @@ export default function Dashboard() {
               </summary>
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
                 <div className="mt-6 space-y-4">
-                  {formData.trainings.map((entry) => (
+                  {formData.trainings && formData.trainings.length > 0 && formData.trainings.map((entry) => (
                     <div key={entry.id} className="bg-surface-container-low p-4 rounded-lg flex gap-4">
                       <div className="flex-1 space-y-2">
                         <input value={entry.title} onChange={(e) => handleTrainingChange(entry.id, 'title', e.target.value)} className="w-full bg-white border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Training Title" />
@@ -1364,6 +1401,8 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4">
                   <button onClick={handleAddTraining} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
                     + Add Training or Seminar
                   </button>
