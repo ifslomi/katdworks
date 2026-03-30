@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, type MouseEvent } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, type MouseEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -71,7 +71,13 @@ export default function Portfolio() {
   const [activeSection, setActiveSection] = useState('hero');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const navRootRef = useRef<HTMLElement | null>(null);
+  const navLeftRef = useRef<HTMLDivElement | null>(null);
+  const navRightRef = useRef<HTMLDivElement | null>(null);
+  const navMeasureRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const moreMeasureRef = useRef<HTMLSpanElement | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [desktopPrimaryCount, setDesktopPrimaryCount] = useState(5);
   const isAdminPreview = new URLSearchParams(location.search).get('adminPreview') === '1';
 
   
@@ -253,7 +259,22 @@ export default function Portfolio() {
     (isEditMode ||
       Boolean(data?.contact?.intro || data?.contact?.email || data?.contact?.phone || data?.contact?.location));
 
-  const visibleNavLinks = (data?.ui?.navLinks || []).filter((item) => {
+  const sectionNavLabels: Record<string, string> = {
+    home: data?.ui?.sectionTitles?.home || 'Home',
+    about: data?.ui?.sectionTitles?.about || 'About',
+    experience: data?.ui?.sectionTitles?.experience || 'Experience',
+    skills: data?.ui?.sectionTitles?.skills || 'Skills',
+    education: data?.ui?.sectionTitles?.education || 'Education',
+    trainings: data?.ui?.sectionTitles?.trainings || 'Trainings',
+    projects: data?.ui?.sectionTitles?.projects || 'Projects',
+    contact: data?.ui?.sectionTitles?.contact || 'Contact',
+    certifications: data?.ui?.certificationsTitle || 'Certifications',
+  };
+
+  const visibleNavLinks = (data?.ui?.navLinks || []).map((item) => ({
+    ...item,
+    label: sectionNavLabels[item.id] || item.label,
+  })).filter((item) => {
     if (item.id === 'home') return showHomeSection;
     if (item.id === 'about') return showAboutSection;
     if (item.id === 'experience') return showExperienceSection;
@@ -266,8 +287,70 @@ export default function Portfolio() {
     return true;
   });
 
-  const primaryNavLinks = visibleNavLinks.slice(0, 5);
-  const overflowNavLinks = visibleNavLinks.slice(5);
+  const recalculateDesktopNavFit = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    if (window.innerWidth < 1024) {
+      setDesktopPrimaryCount(visibleNavLinks.length);
+      return;
+    }
+
+    const navWidth = navRootRef.current?.clientWidth || 0;
+    const leftWidth = navLeftRef.current?.offsetWidth || 0;
+    const rightWidth = navRightRef.current?.offsetWidth || 0;
+    const availableCenterWidth = navWidth - leftWidth - rightWidth - 56;
+
+    if (availableCenterWidth <= 0) {
+      setDesktopPrimaryCount(0);
+      return;
+    }
+
+    const gap = 20; // matches `gap-5`
+    const widths = visibleNavLinks.map((item) => navMeasureRefs.current[item.id]?.offsetWidth || 0);
+    const moreWidth = moreMeasureRef.current?.offsetWidth || 0;
+    const total = widths.length;
+
+    let fitCount = total;
+    for (let count = total; count >= 0; count -= 1) {
+      const linksWidth = widths.slice(0, count).reduce((sum, w) => sum + w, 0);
+      const linkGaps = count > 1 ? (count - 1) * gap : 0;
+      const showMore = count < total;
+      const moreBlockWidth = showMore ? (count > 0 ? gap : 0) + moreWidth : 0;
+      const neededWidth = linksWidth + linkGaps + moreBlockWidth;
+
+      if (neededWidth <= availableCenterWidth) {
+        fitCount = count;
+        break;
+      }
+    }
+
+    setDesktopPrimaryCount(fitCount);
+  }, [visibleNavLinks]);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(recalculateDesktopNavFit);
+    const handleResize = () => recalculateDesktopNavFit();
+
+    window.addEventListener('resize', handleResize);
+
+    const observer = new ResizeObserver(() => {
+      recalculateDesktopNavFit();
+    });
+
+    if (navRootRef.current) observer.observe(navRootRef.current);
+    if (navLeftRef.current) observer.observe(navLeftRef.current);
+    if (navRightRef.current) observer.observe(navRightRef.current);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
+    };
+  }, [recalculateDesktopNavFit]);
+
+  const primaryCount = Math.max(0, Math.min(desktopPrimaryCount, visibleNavLinks.length));
+  const primaryNavLinks = visibleNavLinks.slice(0, primaryCount);
+  const overflowNavLinks = visibleNavLinks.slice(primaryCount);
 
   const handlePortfolioDownload = async () => {
     if (!data?.portfolioPdfUrl) {
@@ -433,12 +516,31 @@ export default function Portfolio() {
 
       {/* TopNavBar */}
       <motion.nav 
+        ref={navRootRef}
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
         className={`${isEditMode ? 'relative top-0' : 'sticky top-4'} mx-auto w-[90%] max-w-5xl rounded-full px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center relative z-50 shadow-xl shadow-[#1a1c1a]/5`}
       >
-        <div className="min-w-[220px] flex items-center gap-3">
+        <div
+          aria-hidden="true"
+          className="hidden lg:flex absolute invisible pointer-events-none -z-10 items-center gap-5 whitespace-nowrap"
+        >
+          {visibleNavLinks.map((item) => (
+            <span
+              key={`measure-${item.id}`}
+              ref={(el) => {
+                navMeasureRefs.current[item.id] = el;
+              }}
+              className="text-[15px] leading-none font-medium"
+            >
+              {item.label}
+            </span>
+          ))}
+          <span ref={moreMeasureRef} className="text-[15px] leading-none font-semibold">More</span>
+        </div>
+
+        <div ref={navLeftRef} className="min-w-[220px] flex items-center gap-3">
           {data.ui.navLogoUrl && (
             <div className="relative group">
               <img
@@ -568,38 +670,40 @@ export default function Portfolio() {
             </motion.div>
           </details>
         </motion.div>
-        {isAdmin && isAdminPreview ? (
-          <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            type="button"
-            onClick={() => {
-              sileo.info({
-                title: 'Already logged in',
-                description: 'You are in admin preview mode. Return to Dashboard to continue editing or logout.'
-              });
-            }}
-            className="bg-primary/70 text-on-primary px-6 py-2 rounded-lg font-label font-bold transition-transform cursor-not-allowed"
-          >
-            Login
-          </motion.button>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <Link
-              to="/login"
-              className="inline-block bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
+        <div ref={navRightRef} className="flex items-center justify-end">
+          {isAdmin && isAdminPreview ? (
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              onClick={() => {
+                sileo.info({
+                  title: 'Already logged in',
+                  description: 'You are in admin preview mode. Return to Dashboard to continue editing or logout.'
+                });
+              }}
+              className="bg-primary/70 text-on-primary px-6 py-2 rounded-lg font-label font-bold transition-transform cursor-not-allowed"
             >
               Login
-            </Link>
-          </motion.div>
-        )}
+            </motion.button>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <Link
+                to="/login"
+                className="inline-block bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
+              >
+                Login
+              </Link>
+            </motion.div>
+          )}
+        </div>
       </motion.nav>
 
       <motion.button
@@ -1407,7 +1511,7 @@ export default function Portfolio() {
             variants={fadeUp}
             className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 md:mb-12 relative inline-block"
           >
-            <InlineText value={data.ui.sectionTitles.skills} onChange={(val) => updateData({ ui: { ...data.ui, expertiseTitle: val, sectionTitles: { ...data.ui.sectionTitles, skills: val } } })} />
+            <InlineText value={data.ui.sectionTitles.skills} onChange={(val) => updateData({ ui: { ...data.ui, sectionTitles: { ...data.ui.sectionTitles, skills: val } } })} />
             <motion.span
               initial={{ width: 0 }}
               whileInView={{ width: "100%" }}
@@ -1503,7 +1607,10 @@ export default function Portfolio() {
               whileHover={{ scale: 1.01 }}
               className="md:col-span-3 bg-surface-container-lowest p-6 md:p-8 rounded-xl flex flex-col md:flex-row gap-4 md:items-center border border-outline-variant/10"
             >
-              <span className="font-label text-xs md:text-sm font-bold text-secondary uppercase tracking-widest md:mr-4">Tech Arsenal:</span>
+              <span className="font-label text-xs md:text-sm font-bold text-secondary uppercase tracking-widest md:mr-4">
+                <InlineText value={data.ui.expertiseTitle || 'Tech Arsenal'} onChange={(val) => updateData({ ui: { ...data.ui, expertiseTitle: val } })} />
+                :
+              </span>
               <div className="flex flex-wrap gap-2">
                 {data.skills.map((skill, i) => (
                   <motion.span

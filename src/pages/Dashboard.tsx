@@ -458,7 +458,13 @@ export default function Dashboard() {
   const handleSectionTitleChange = (section: string, value: string) => {
     setFormData(prev => prev ? {
       ...prev,
-      ui: { ...prev.ui, sectionTitles: { ...prev.ui.sectionTitles, [section]: value } }
+      ui: {
+        ...prev.ui,
+        sectionTitles: { ...prev.ui.sectionTitles, [section]: value },
+        navLinks: prev.ui.navLinks.map((link) =>
+          link.id === section ? { ...link, label: value } : link
+        ),
+      }
     } : null);
   };
 
@@ -628,6 +634,17 @@ export default function Dashboard() {
   const sectionVisibility = {
     ...DEFAULT_SECTION_VISIBILITY,
     ...(formData.ui.sectionVisibility || {}),
+  };
+  const adminSectionNames = {
+    home: formData.ui.sectionTitles.home || 'Home',
+    about: formData.ui.sectionTitles.about || 'About',
+    experience: formData.ui.sectionTitles.experience || 'Experience',
+    skills: formData.ui.sectionTitles.skills || 'Skills',
+    education: formData.ui.sectionTitles.education || 'Education',
+    trainings: formData.ui.sectionTitles.trainings || 'Trainings',
+    projects: formData.ui.sectionTitles.projects || 'Projects',
+    contact: formData.ui.sectionTitles.contact || 'Contact',
+    certifications: formData.ui.certificationsTitle || 'Certifications',
   };
   const rangeViews = selectedDailyStats.reduce((sum, day) => sum + (day.views || 0), 0);
   const rangeDownloads = selectedDailyStats.reduce((sum, day) => sum + (day.downloads || 0), 0);
@@ -966,7 +983,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">About Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.about} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.about} onChange={(e) => handleSectionVisibilityChange('about', e.target.checked)} className="sr-only peer" />
@@ -977,7 +994,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Experience Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.experience} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.experience} onChange={(e) => handleSectionVisibilityChange('experience', e.target.checked)} className="sr-only peer" />
@@ -988,7 +1005,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Skills Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.skills} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.skills} onChange={(e) => handleSectionVisibilityChange('skills', e.target.checked)} className="sr-only peer" />
@@ -999,7 +1016,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Education Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.education} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.education} onChange={(e) => handleSectionVisibilityChange('education', e.target.checked)} className="sr-only peer" />
@@ -1010,7 +1027,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Trainings Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.trainings} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.trainings} onChange={(e) => handleSectionVisibilityChange('trainings', e.target.checked)} className="sr-only peer" />
@@ -1021,7 +1038,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Projects Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.projects} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.projects} onChange={(e) => handleSectionVisibilityChange('projects', e.target.checked)} className="sr-only peer" />
@@ -1032,7 +1049,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Contact Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.contact} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.contact} onChange={(e) => handleSectionVisibilityChange('contact', e.target.checked)} className="sr-only peer" />
@@ -1043,7 +1060,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Certifications Heading</label>
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.certifications} Heading</label>
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.certifications} onChange={(e) => handleSectionVisibilityChange('certifications', e.target.checked)} className="sr-only peer" />
@@ -1071,7 +1088,7 @@ export default function Dashboard() {
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50 space-y-6">
                 <div className="mt-6">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Portfolio Headline</label>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">{adminSectionNames.home} Heading</label>
                     <label className="inline-flex items-center gap-2 cursor-pointer">
                       <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                       <input type="checkbox" checked={sectionVisibility.home} onChange={(e) => handleSectionVisibilityChange('home', e.target.checked)} className="sr-only peer" />
@@ -1194,7 +1211,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="history_edu">history_edu</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">About &amp; Philosophy</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.about}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Update your personal quote and biography paragraphs shown in the About section.</p>
                   </div>
                 </div>
@@ -1232,7 +1249,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="work">work</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Experience</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.experience}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Manage timeline entries like role title, company, period, and description.</p>
                   </div>
                 </div>
@@ -1269,7 +1286,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="school">school</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Education</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.education}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Edit academic entries including program, school, date range, and details.</p>
                   </div>
                 </div>
@@ -1305,7 +1322,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Trainings and Seminars</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.trainings}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Maintain training records with provider, date, and supporting notes.</p>
                   </div>
                 </div>
@@ -1341,7 +1358,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="contact_phone">contact_phone</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Contact Details</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.contact}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Set the public contact intro and the core channels visitors can use to reach you.</p>
                   </div>
                 </div>
@@ -1375,13 +1392,23 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="verified">verified</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Key Expertise</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.skills} Tags</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Add short skill tags used in your expertise and tech stack presentation.</p>
                   </div>
                 </div>
                 <span className="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
               </summary>
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
+                <div className="mt-6 mb-4">
+                  <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Tech Arsenal Title</label>
+                  <input
+                    value={formData.ui.expertiseTitle || ''}
+                    onChange={(e) => handleBrandingChange('expertiseTitle', e.target.value)}
+                    className="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm text-primary focus:ring-2 focus:ring-secondary/20"
+                    type="text"
+                    placeholder="Tech Arsenal"
+                  />
+                </div>
                 <div className="mt-6 flex flex-wrap gap-2 items-center">
                   {formData.skills.map((skill, i) => (
                       <span key={i} className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold flex items-center gap-2">
@@ -1403,7 +1430,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Certifications</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.certifications}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Manage certification cards, icon style, color theme, and image proof uploads.</p>
                   </div>
                 </div>
@@ -1473,7 +1500,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="grid_view">grid_view</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Expertise Cards</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.skills} Cards</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Edit featured capability cards with icon, title, and descriptive copy.</p>
                   </div>
                 </div>
@@ -1507,7 +1534,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="folder_special">folder_special</span>
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">Featured Projects</h3>
+                    <h3 className="font-headline font-bold text-lg text-primary">{adminSectionNames.projects}</h3>
                     <p className="mt-0.5 text-xs text-secondary leading-relaxed">Maintain project showcase content including images, links, tags, metrics, and CTA labels.</p>
                   </div>
                 </div>
