@@ -56,9 +56,9 @@ function InlineText({ value, onChange, className, multiline = false }: { value: 
   const isEditMode = useContext(EditModeContext);
   if (!isEditMode) return multiline ? <div className={`whitespace-pre-wrap ${className || ''}`}>{value}</div> : <span className={className}>{value}</span>;
   return multiline ? (
-    <textarea value={value} onChange={(e) => onChange(e.target.value)} className={`bg-white/20 border border-white/50 rounded px-2 py-1 w-full min-h-[100px] ${className || ''}`} />
+    <textarea value={value} onChange={(e) => onChange(e.target.value)} className={`bg-white/20 border border-white/50 rounded px-2 py-1 w-full min-h-[100px] text-primary ${className || ''}`} />
   ) : (
-    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={`bg-white/20 border border-white/50 rounded px-2 py-1 w-full ${className || ''}`} />
+    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={`bg-white/20 border border-white/50 rounded px-2 py-1 w-full text-primary ${className || ''}`} />
   );
 }
 
