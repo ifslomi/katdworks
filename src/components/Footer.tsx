@@ -15,14 +15,12 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto gap-8">
           <div className="text-center md:text-left">
             <div className="font-headline font-bold text-2xl text-primary mb-2 flex items-center justify-center md:justify-start gap-3">
-              {data.ui.footerLogoUrl && (
-                <img
-                  src={data.ui.footerLogoUrl}
-                  alt="Footer brand"
-                  className="w-8 h-8 rounded-lg object-cover border border-outline-variant/20"
-                  referrerPolicy="no-referrer"
-                />
-              )}
+              <img
+                src={data.ui.footerLogoUrl || '/favicon.svg'}
+                alt="Footer brand"
+                className="w-8 h-8 rounded-lg object-cover border border-outline-variant/20"
+                referrerPolicy="no-referrer"
+              />
               {data.ui.footerTitle}
             </div>
             <p className="text-secondary font-body text-sm">© {currentYear} {data.ui.footerTitle}. All rights reserved.</p>

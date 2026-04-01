@@ -1019,7 +1019,7 @@ export default function Dashboard() {
                       {formData.ui.navLogoUrl ? (
                          <img src={formData.ui.navLogoUrl} className="h-6 w-auto object-contain" alt="Nav Logo"/>
                       ) : (
-                         <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                         <img src="/favicon.svg" className="h-6 w-6 rounded-md object-cover border border-outline-variant/20" alt="Default Nav Logo" />
                       )}
                       <span className="text-xs text-secondary">
                         {uploadProgress['navLogo'] !== undefined
@@ -1027,7 +1027,7 @@ export default function Dashboard() {
                           : (formData.ui.navLogoUrl ? 'Change Logo' : 'Upload Logo (.svg, .png)')}
                       </span>
                     </div>
-                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['navLogo'] = el} onChange={(e) => {
+                    <input type="file" accept="image/*" className="hidden" ref={(el) => { fileInputRefs.current['navLogo'] = el; }} onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file, 'logos', (url) => handleBrandingChange('navLogoUrl', url), 'navLogo');
                       e.currentTarget.value = '';
@@ -1043,7 +1043,7 @@ export default function Dashboard() {
                       {formData.ui.footerLogoUrl ? (
                         <img src={formData.ui.footerLogoUrl} className="h-6 w-auto object-contain" alt="Footer Logo" />
                       ) : (
-                        <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                        <img src="/favicon.svg" className="h-6 w-6 rounded-md object-cover border border-outline-variant/20" alt="Default Footer Logo" />
                       )}
                       <span className="text-xs text-secondary">
                         {uploadProgress['footerLogo'] !== undefined
@@ -1051,7 +1051,7 @@ export default function Dashboard() {
                           : (formData.ui.footerLogoUrl ? 'Change Logo' : 'Upload Logo (.svg, .png)')}
                       </span>
                     </div>
-                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['footerLogo'] = el} onChange={(e) => {
+                    <input type="file" accept="image/*" className="hidden" ref={(el) => { fileInputRefs.current['footerLogo'] = el; }} onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file, 'logos', (url) => handleBrandingChange('footerLogoUrl', url), 'footerLogo');
                       e.currentTarget.value = '';
@@ -1243,7 +1243,7 @@ export default function Dashboard() {
                         type="file"
                         accept="application/pdf,.pdf"
                         className="hidden"
-                        ref={el => fileInputRefs.current['portfolioPdf'] = el}
+                        ref={(el) => { fileInputRefs.current['portfolioPdf'] = el; }}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
@@ -1296,7 +1296,7 @@ export default function Dashboard() {
                         Delete
                       </button>
                     )}
-                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['heroImage'] = el} onChange={(e) => {
+                    <input type="file" accept="image/*" className="hidden" ref={(el) => { fileInputRefs.current['heroImage'] = el; }} onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file, 'images', (url) => setFormData(prev => prev ? {...prev, hero: {...prev.hero, imageUrl: url}} : null), 'heroImage');
                       e.currentTarget.value = '';
@@ -1353,7 +1353,7 @@ export default function Dashboard() {
                         Delete
                       </button>
                     )}
-                    <input type="file" accept="image/*" className="hidden" ref={el => fileInputRefs.current['aboutImage'] = el} onChange={(e) => {
+                    <input type="file" accept="image/*" className="hidden" ref={(el) => { fileInputRefs.current['aboutImage'] = el; }} onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file, 'images', (url) => setFormData(prev => prev ? {...prev, about: {...prev.about, imageUrl: url}} : null), 'aboutImage');
                       e.currentTarget.value = '';

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, type MouseEvent } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, type FormEvent, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -6,7 +6,7 @@ import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { sileo } from 'sileo';
 import { auth, db, storage } from '../firebase';
-import { usePortfolioData, DEFAULT_SECTION_VISIBILITY, PortfolioSectionKey } from '../hooks/usePortfolioData';
+import { usePortfolioData, DEFAULT_SECTION_VISIBILITY, type PortfolioData, PortfolioSectionKey } from '../hooks/usePortfolioData';
 import { uploadToCloudinary } from '../utils/localUpload';
 import { IconPicker } from '../components/IconPicker';
 import { Footer } from '../components/Footer';
@@ -80,6 +80,11 @@ function getUploadProgressByPrefix(uploadProgress: Record<string, number>, prefi
   return Math.round(total / matches.length);
 }
 
+type ContactApiResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
 const EditModeContext = createContext(false);
 
 function InlineText({ value, onChange, className, multiline = false }: { value: string, onChange: (val: string) => void, className?: string, multiline?: boolean }) {
@@ -117,6 +122,8 @@ export default function Portfolio() {
   const [desktopPrimaryCount, setDesktopPrimaryCount] = useState(5);
   const [activeDetailModal, setActiveDetailModal] = useState<{ type: 'project' | 'certification'; id: string } | null>(null);
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const contactStartedAtRef = useRef(Date.now());
 
   const openDetailModal = useCallback((type: 'project' | 'certification', id: string) => {
     setActiveDetailModal({ type, id });
@@ -323,9 +330,103 @@ export default function Portfolio() {
     }
   };
 
+  const handleContactSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    const name = String(formData.get('name') || '').trim();
+    const email = String(formData.get('email') || '').trim().toLowerCase();
+    const message = String(formData.get('message') || '').trim();
+    const website = String(formData.get('website') || '').trim();
+
+    const localCooldownKey = 'katdworks_contact_last_submit_at';
+    const previousSubmitAt = Number(localStorage.getItem(localCooldownKey) || '0');
+    const now = Date.now();
+
+    if (previousSubmitAt > 0 && now - previousSubmitAt < 20_000) {
+      sileo.warning({
+        title: 'Please wait a moment',
+        description: 'You can send another message after 20 seconds.',
+      });
+      return;
+    }
+
+    if (name.length < 2) {
+      sileo.warning({
+        title: 'Name required',
+        description: 'Please provide your name before sending.',
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      sileo.warning({
+        title: 'Valid email required',
+        description: 'Please enter a valid email address so I can reply.',
+      });
+      return;
+    }
+
+    if (message.length < 10) {
+      sileo.warning({
+        title: 'Message too short',
+        description: 'Please include a bit more detail in your message.',
+      });
+      return;
+    }
+
+    setContactSubmitting(true);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          website,
+          startedAt: contactStartedAtRef.current,
+          submittedAt: now,
+        }),
+      });
+
+      let payload: ContactApiResponse = {};
+      try {
+        payload = await response.json();
+      } catch {
+        payload = {};
+      }
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Unable to send your message right now. Please try again shortly.');
+      }
+
+      sileo.info({
+        title: 'Message sent',
+        description: 'Thanks for reaching out. I will get back to you soon.',
+      });
+
+      localStorage.setItem(localCooldownKey, String(now));
+      form.reset();
+      contactStartedAtRef.current = Date.now();
+    } catch (error) {
+      sileo.warning({
+        title: 'Send failed',
+        description: error instanceof Error ? error.message : 'Unable to send your message right now.',
+      });
+    } finally {
+      setContactSubmitting(false);
+    }
+  };
+
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } }
   };
 
   const staggerContainer = {
@@ -392,7 +493,9 @@ export default function Portfolio() {
   };
 
   const visibleNavLinks = useMemo(() => {
-    const configuredNavById = new Map((data?.ui?.navLinks || []).map((item) => [item.id, item]));
+    const configuredNavById = new Map<string, PortfolioData['ui']['navLinks'][number]>(
+      (data?.ui?.navLinks || []).map((item) => [item.id, item] as const)
+    );
 
     return SECTION_RENDER_ORDER
       .filter((sectionId) => sectionVisibilityForNav[sectionId])
@@ -885,38 +988,28 @@ export default function Portfolio() {
         </div>
 
         <div ref={navLeftRef} className="min-w-0 flex-1 flex items-center gap-2 sm:gap-3 lg:min-w-[220px] lg:flex-none">
-          {data.ui.navLogoUrl && (
-            <div className="relative group">
-              <img
-                src={data.ui.navLogoUrl}
-                alt="Brand"
-                className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-white"
-                referrerPolicy="no-referrer"
-              />
-              {isEditMode && (
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl z-10">
-                  <button
-                    onClick={() => fileInputRefs.current['navLogo']?.click()}
-                    className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
-                  >
-                    Change
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-          {isEditMode && !data.ui.navLogoUrl && (
-            <button
-              onClick={() => fileInputRefs.current['navLogo']?.click()}
-              className="text-[10px] font-bold bg-white/20 text-white px-2 py-1 rounded hover:bg-white/30 transition-colors border border-white/30"
-            >
-              + Logo
-            </button>
-          )}
+          <div className="relative group">
+            <img
+              src={data.ui.navLogoUrl || '/favicon.svg'}
+              alt="Brand"
+              className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-white"
+              referrerPolicy="no-referrer"
+            />
+            {isEditMode && (
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl z-10">
+                <button
+                  onClick={() => fileInputRefs.current['navLogo']?.click()}
+                  className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
+                >
+                  Change
+                </button>
+              </div>
+            )}
+          </div>
           <input
             type="file"
             accept="image/*"
-            ref={el => fileInputRefs.current['navLogo'] = el}
+            ref={(el) => { fileInputRefs.current['navLogo'] = el; }}
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) {
@@ -1259,7 +1352,7 @@ export default function Portfolio() {
                     <input 
                       type="file"
                       accept="image/*"
-                      ref={el => fileInputRefs.current['heroImage'] = el}
+                      ref={(el) => { fileInputRefs.current['heroImage'] = el; }}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handleFileUpload(file, 'images', (url) => updateData({ hero: { ...data.hero, imageUrl: url } }));
@@ -1366,7 +1459,7 @@ export default function Portfolio() {
                         <input
                           type="file"
                           accept="image/*"
-                          ref={el => fileInputRefs.current[`social-${item.id}`] = el}
+                          ref={(el) => { fileInputRefs.current[`social-${item.id}`] = el; }}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -1553,7 +1646,7 @@ export default function Portfolio() {
                         <input 
                           type="file"
                           accept="image/*"
-                          ref={el => fileInputRefs.current['aboutImage'] = el}
+                          ref={(el) => { fileInputRefs.current['aboutImage'] = el; }}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleFileUpload(file, 'images', (url) => updateData({ about: { ...data.about, imageUrl: url } }));
@@ -1598,7 +1691,7 @@ export default function Portfolio() {
                   <input 
                     type="file"
                     accept="image/*"
-                    ref={el => fileInputRefs.current['aboutImage'] = el}
+                    ref={(el) => { fileInputRefs.current['aboutImage'] = el; }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file, 'images', (url) => updateData({ about: { ...data.about, imageUrl: url } }));
@@ -2747,26 +2840,66 @@ export default function Portfolio() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="md:w-1/2 p-8 md:p-12"
             >
-              <form action="#" className="space-y-4 md:space-y-6" method="POST">
+              <form className="space-y-4 md:space-y-6" onSubmit={handleContactSubmit}>
                 <div>
                   <label className="block text-xs md:text-sm font-label font-bold text-primary mb-1 md:mb-2">Name</label>
-                  <input className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base" placeholder="Julien Dupont" type="text" />
+                  <input
+                    className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base"
+                    placeholder="Julien Dupont"
+                    type="text"
+                    name="name"
+                    required
+                    minLength={2}
+                    maxLength={120}
+                    disabled={contactSubmitting}
+                    autoComplete="name"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs md:text-sm font-label font-bold text-primary mb-1 md:mb-2">Email Address</label>
-                  <input className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base" placeholder="julien@agency.com" type="email" />
+                  <input
+                    className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base"
+                    placeholder="julien@agency.com"
+                    type="email"
+                    name="email"
+                    required
+                    maxLength={160}
+                    disabled={contactSubmitting}
+                    autoComplete="email"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs md:text-sm font-label font-bold text-primary mb-1 md:mb-2">How can I support you?</label>
-                  <textarea className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base" placeholder="Tell me about your vision..." rows={4}></textarea>
+                  <textarea
+                    className="w-full bg-surface-container border-none rounded-lg focus:ring-2 focus:ring-secondary text-primary p-3 md:p-4 text-sm md:text-base"
+                    placeholder="Tell me about your vision..."
+                    rows={4}
+                    name="message"
+                    required
+                    minLength={10}
+                    maxLength={5000}
+                    disabled={contactSubmitting}
+                  />
                 </div>
+                <input
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  className="hidden"
+                  aria-hidden="true"
+                />
+                <p className="text-[11px] md:text-xs text-secondary leading-relaxed">
+                  Protected by anti-spam rate limits for faster and safer replies.
+                </p>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full bg-primary text-on-primary py-3 md:py-4 rounded-lg font-bold text-sm md:text-base hover:bg-secondary transition-all duration-300 shadow-lg"
+                  className="w-full bg-primary text-on-primary py-3 md:py-4 rounded-lg font-bold text-sm md:text-base hover:bg-secondary transition-all duration-300 shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
                   type="submit"
+                  disabled={contactSubmitting}
                 >
-                  Send Inquiry
+                  {contactSubmitting ? 'Sending...' : 'Send Inquiry'}
                 </motion.button>
               </form>
             </motion.div>

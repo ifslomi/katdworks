@@ -92,7 +92,7 @@ export default function Login() {
 
   const fadeUp = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } }
   };
 
   if (authChecking) {
@@ -108,7 +108,10 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="fixed top-0 left-0 w-full z-50 py-6 px-8 flex justify-between items-center glass-header"
       >
-        <Link to="/" className="text-xl font-headline font-black tracking-tight text-primary">KDL.</Link>
+        <Link to="/" className="flex items-center gap-2 text-xl font-headline font-black tracking-tight text-primary">
+          <img src="/favicon.svg" alt="Katdworks" className="w-7 h-7 rounded-lg border border-outline-variant/25" />
+          KDL.
+        </Link>
         <Link to="/" className="text-sm font-label font-medium text-secondary hover:text-primary transition-colors duration-300 flex items-center gap-2">
           <span className="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span>
           Back to Portfolio

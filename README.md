@@ -10,3 +10,22 @@ Notes:
 
 - Uploads now use Cloudinary signed uploads in both local development and production.
 - Keep the Cloudinary secret only in local env files and Vercel secrets.
+
+## Contact Form Email Setup
+
+The contact form now posts to `/api/contact` and sends emails server-side.
+
+Required environment variables:
+
+- `SMTP_USER` (or `GMAIL_USER`)
+- `SMTP_PASS` (or `GMAIL_APP_PASSWORD`)
+
+Optional environment variables:
+
+- `SMTP_HOST` (defaults to `smtp.gmail.com`)
+- `SMTP_PORT` (defaults to `465`)
+- `SMTP_SECURE` (`true` or `false`; defaults based on port)
+- `CONTACT_TO_EMAIL` (defaults to `katdworks@gmail.com`)
+- `CONTACT_FROM_EMAIL` (defaults to `SMTP_USER`)
+
+For Gmail, create an app password and use that value in `GMAIL_APP_PASSWORD`.
