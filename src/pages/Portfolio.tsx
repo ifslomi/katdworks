@@ -486,6 +486,7 @@ export default function Portfolio() {
   const primaryNavLinks = visibleNavLinks.slice(0, primaryCount);
   const overflowNavLinks = visibleNavLinks.slice(primaryCount);
   const isMoreActive = overflowNavLinks.some((item) => activeSection === item.href.replace('#', ''));
+  const activeNavLabel = visibleNavLinks.find((item) => activeSection === item.href.replace('#', ''))?.label || 'Sections';
 
   const handlePortfolioDownload = async () => {
     if (!data?.portfolioPdfUrl) {
@@ -863,7 +864,7 @@ export default function Portfolio() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: isEditMode ? 0 : isNavLockedTop ? 0 : 16, opacity: 1 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-        className={`${navPositionClass} w-[90%] max-w-5xl rounded-full px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center z-50 shadow-xl shadow-[#1a1c1a]/5 will-change-transform`}
+        className={`${navPositionClass} w-[94%] sm:w-[90%] max-w-5xl rounded-full px-4 sm:px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center z-50 shadow-xl shadow-[#1a1c1a]/5 will-change-transform`}
       >
         <div
           aria-hidden="true"
@@ -883,7 +884,7 @@ export default function Portfolio() {
           <span ref={moreMeasureRef} className="text-[15px] leading-none font-semibold">More</span>
         </div>
 
-        <div ref={navLeftRef} className="min-w-[220px] flex items-center gap-3">
+        <div ref={navLeftRef} className="min-w-0 flex-1 flex items-center gap-2 sm:gap-3 lg:min-w-[220px] lg:flex-none">
           {data.ui.navLogoUrl && (
             <div className="relative group">
               <img
@@ -927,7 +928,7 @@ export default function Portfolio() {
             }}
             className="hidden"
           />
-          <div className="text-xl font-headline font-black text-primary">
+          <div className="text-lg sm:text-xl font-headline font-black text-primary max-w-[150px] sm:max-w-[220px] lg:max-w-none truncate">
             <InlineText value={data.ui.navTitle} onChange={(val) => updateData({ ui: { ...data.ui, navTitle: val } })} />
           </div>
         </div>
@@ -996,45 +997,58 @@ export default function Portfolio() {
             </div>
           )}
         </div>
-        <motion.div
-          initial={false}
-          className="hidden md:block lg:hidden absolute left-1/2 -translate-x-1/2"
-        >
-          <div ref={tabletMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setIsTabletMenuOpen((prev) => !prev)}
-              className="cursor-pointer bg-surface-container-highest text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-outline-variant transition-colors"
-              aria-haspopup="menu"
-              aria-expanded={isTabletMenuOpen}
-            >
-              Menu
-            </button>
-            <AnimatePresence>
-              {isTabletMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+        <div ref={navRightRef} className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+          <motion.div
+            initial={false}
+            className="lg:hidden"
+          >
+            <div ref={tabletMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsTabletMenuOpen((prev) => !prev)}
+                className="cursor-pointer flex items-center gap-1 rounded-full border border-outline-variant/35 bg-surface-container-low/90 backdrop-blur px-2.5 sm:px-3 py-1.5 shadow-sm hover:bg-surface-container transition-colors"
+                aria-haspopup="menu"
+                aria-expanded={isTabletMenuOpen}
+              >
+                <span className="material-symbols-outlined text-[16px] text-secondary" data-icon="menu">menu</span>
+                <span className="max-w-[64px] sm:max-w-[92px] truncate text-[11px] sm:text-[12px] font-semibold tracking-wide text-primary">{activeNavLabel}</span>
+                <motion.span
+                  animate={{ rotate: isTabletMenuOpen ? 180 : 0 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="absolute right-0 mt-3 w-48 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50 will-change-transform"
+                  className="material-symbols-outlined text-[16px] text-secondary"
+                  data-icon="expand_more"
                 >
-                  {visibleNavLinks.map((item) => (
-                    <a
-                      key={item.id}
-                      className={`block rounded-lg px-3 py-2 text-sm transition-colors ${activeSection === item.href.replace('#', '') ? 'bg-surface-container-high text-primary' : 'text-secondary hover:bg-surface-container-low hover:text-primary'}`}
-                      href={item.href || '#'}
-                      onClick={handleNavClick(item.href || '#')}
-                    >
-                      {item.label}
-                    </a>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-        <div ref={navRightRef} className="flex items-center justify-end">
+                  expand_more
+                </motion.span>
+              </button>
+              <AnimatePresence>
+                {isTabletMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="absolute right-0 mt-3 w-[min(84vw,17rem)] rounded-2xl border border-outline-variant/30 bg-surface-container-lowest/95 backdrop-blur-md shadow-xl p-2.5 z-50 will-change-transform"
+                  >
+                    <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">Navigate</p>
+                    {visibleNavLinks.map((item) => (
+                      <a
+                        key={item.id}
+                        className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors ${activeSection === item.href.replace('#', '') ? 'bg-surface-container-high text-primary' : 'text-secondary hover:bg-surface-container-low hover:text-primary'}`}
+                        href={item.href || '#'}
+                        onClick={handleNavClick(item.href || '#')}
+                      >
+                        <span className="truncate pr-3">{item.label}</span>
+                        {activeSection === item.href.replace('#', '') && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                        )}
+                      </a>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
           {isAdmin ? (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -1043,7 +1057,7 @@ export default function Portfolio() {
             >
               <Link
                 to="/dashboard"
-                className="inline-block bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
+                className="inline-block bg-primary text-on-primary px-3 sm:px-5 lg:px-6 py-2 rounded-lg font-label text-sm font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
               >
                 Dashboard
               </Link>
@@ -1056,7 +1070,7 @@ export default function Portfolio() {
             >
               <Link
                 to="/login"
-                className="inline-block bg-primary text-on-primary px-6 py-2 rounded-lg font-label font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
+                className="inline-block bg-primary text-on-primary px-3 sm:px-5 lg:px-6 py-2 rounded-lg font-label text-sm font-bold scale-95 hover:scale-100 active:scale-90 transition-transform"
               >
                 Login
               </Link>

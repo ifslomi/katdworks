@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sileo';
 import { UnifiedLoadingScreen } from './components/UnifiedLoadingScreen';
@@ -14,11 +14,30 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+
+    const applyMediaState = (eventOrList: MediaQueryListEvent | MediaQueryList) => {
+      setIsSmallScreen(eventOrList.matches);
+    };
+
+    applyMediaState(mediaQuery);
+
+    const listener = (event: MediaQueryListEvent) => applyMediaState(event);
+    mediaQuery.addEventListener('change', listener);
+
+    return () => {
+      mediaQuery.removeEventListener('change', listener);
+    };
+  }, []);
+
   return (
     <>
       <Toaster
-        position="bottom-right"
-        offset={{ bottom: 18, right: 18 }}
+        position={isSmallScreen ? 'top-center' : 'bottom-right'}
+        offset={isSmallScreen ? { top: 72 } : { bottom: 18, right: 18 }}
         theme="system"
         options={{
           roundness: 16,
