@@ -11,7 +11,7 @@ export function Footer() {
 
   return (
     <>
-      <footer className="w-full py-8 md:py-12 px-6 md:px-8 mt-12 md:mt-20 bg-surface-container border-t border-outline-variant/30">
+      <footer className="w-full py-8 md:py-12 px-6 md:px-8 bg-surface-container border-t border-outline-variant/30">
         <div className="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto gap-8">
           <div className="text-center md:text-left">
             <div className="font-headline font-bold text-2xl text-primary mb-2 flex items-center justify-center md:justify-start gap-3">

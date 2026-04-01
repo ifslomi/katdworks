@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged } from 'firebase/auth';
 import { sileo } from 'sileo';
 import { auth } from '../firebase';
+import { UnifiedLoadingScreen } from '../components/UnifiedLoadingScreen';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,12 +13,16 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         navigate('/dashboard', { replace: true });
+        return;
       }
+
+      setAuthChecking(false);
     });
 
     return () => unsubscribe();
@@ -89,6 +94,10 @@ export default function Login() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
   };
+
+  if (authChecking) {
+    return <UnifiedLoadingScreen title="Loading sign-in" subtitle="Verifying your secure session..." />;
+  }
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col">

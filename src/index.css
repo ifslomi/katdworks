@@ -62,8 +62,15 @@
 }
 
 @layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
   body {
     @apply bg-surface text-on-surface font-body;
+    min-height: 100vh;
   }
 }
 
@@ -82,6 +89,57 @@
     display: grid;
     grid-template-columns: 280px 1fr;
   }
+
+  .loader-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(62px);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .loader-orb-a {
+    width: 22rem;
+    height: 22rem;
+    top: -6rem;
+    right: -5rem;
+    background: color-mix(in srgb, var(--color-secondary-container) 74%, white 26%);
+    animation: loaderFloatA 7.2s ease-in-out infinite;
+  }
+
+  .loader-orb-b {
+    width: 19rem;
+    height: 19rem;
+    bottom: -5rem;
+    left: -5rem;
+    background: color-mix(in srgb, var(--color-primary-container) 70%, white 30%);
+    animation: loaderFloatB 8.6s ease-in-out infinite;
+  }
+
+  .skeleton-panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-outline-variant) 35%, transparent 65%);
+    background: color-mix(in srgb, var(--color-surface-container-low) 78%, white 22%);
+    box-shadow: 0 22px 32px -26px rgba(74, 56, 40, 0.35);
+  }
+
+  .skeleton-line {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--color-surface-container-highest) 75%, white 25%);
+  }
+
+  .skeleton-line::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(108deg, rgba(255, 255, 255, 0) 12%, rgba(255, 255, 255, 0.56) 46%, rgba(255, 255, 255, 0) 80%);
+    transform: translateX(-130%);
+    animation: skeletonShimmer 1.7s ease-in-out infinite;
+  }
 }
 
 @keyframes spin {
@@ -90,6 +148,47 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes skeletonShimmer {
+  from {
+    transform: translateX(-130%);
+  }
+
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes loaderFloatA {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-18px, 14px, 0) scale(1.06);
+  }
+}
+
+@keyframes loaderFloatB {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(20px, -12px, 0) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-orb-a,
+  .loader-orb-b,
+  .skeleton-line::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }
 

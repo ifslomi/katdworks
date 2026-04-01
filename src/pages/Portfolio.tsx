@@ -10,6 +10,7 @@ import { usePortfolioData, DEFAULT_SECTION_VISIBILITY, PortfolioSectionKey } fro
 import { uploadToCloudinary } from '../utils/localUpload';
 import { IconPicker } from '../components/IconPicker';
 import { Footer } from '../components/Footer';
+import { UnifiedLoadingScreen } from '../components/UnifiedLoadingScreen';
 
 const ANALYTICS_STATS_DOC = 'portfolio_stats';
 const ANALYTICS_COLLECTION = 'analytics';
@@ -595,7 +596,12 @@ export default function Portfolio() {
   }, [activeDetailImages.length]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-surface text-primary">Loading...</div>;
+    return (
+      <UnifiedLoadingScreen
+        title="Loading portfolio"
+        subtitle="Curating projects, skills, and profile highlights..."
+      />
+    );
   }
 
   if (!data) {
@@ -690,7 +696,7 @@ export default function Portfolio() {
 
   return (
     <EditModeContext.Provider value={isEditMode}>
-    <div className="font-body selection:bg-secondary-container selection:text-on-secondary-container relative overflow-x-hidden">
+    <div className="min-h-screen bg-surface font-body selection:bg-secondary-container selection:text-on-secondary-container relative overflow-x-hidden">
       {readError && (
         <div className="fixed top-0 inset-x-0 z-[60] bg-error-container text-on-error-container px-4 py-2 text-xs text-center">
           Live content could not be loaded from Firestore.

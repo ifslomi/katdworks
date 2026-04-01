@@ -3,12 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sileo';
-import Portfolio from './pages/Portfolio';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import NotFound from './pages/NotFound';
+import { UnifiedLoadingScreen } from './components/UnifiedLoadingScreen';
+
+const Portfolio = lazy(() => import('./pages/Portfolio'));
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
   return (
@@ -29,12 +32,21 @@ export default function App() {
         }}
       />
       <Router>
-        <Routes>
-          <Route path="/" element={<Portfolio />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <UnifiedLoadingScreen
+              title="Loading page"
+              subtitle="Composing sections and transitions..."
+            />
+          }
+        >
+          <Routes>
+            <Route path="/" element={<Portfolio />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </Router>
     </>
   );

@@ -7,6 +7,7 @@ import { auth, db } from '../firebase';
 import { doc, getDoc, collection, getDocs, orderBy, query, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { usePortfolioData, PortfolioData, DEFAULT_SECTION_VISIBILITY, PortfolioSectionKey } from '../hooks/usePortfolioData';
 import { IconPicker } from '../components/IconPicker';
+import { UnifiedLoadingScreen } from '../components/UnifiedLoadingScreen';
 import { uploadToCloudinary } from '../utils/localUpload';
 
 const BRAND_NAME = 'KDL Works';
@@ -694,22 +695,11 @@ export default function Dashboard() {
   }
 
   if (authLoading || dataLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <UnifiedLoadingScreen title="Loading dashboard" subtitle="Syncing your admin workspace..." />;
   }
 
   if (!formData && !showMissingDocState) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface px-6 text-center">
-        <div>
-          <div className="w-12 h-12 mx-auto border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-sm text-secondary">Syncing portfolio document...</p>
-        </div>
-      </div>
-    );
+    return <UnifiedLoadingScreen title="Loading dashboard" subtitle="Syncing portfolio document..." />;
   }
 
   if (!formData) {
