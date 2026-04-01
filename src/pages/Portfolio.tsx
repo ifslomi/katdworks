@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback, type MouseEvent } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -15,6 +15,19 @@ import { UnifiedLoadingScreen } from '../components/UnifiedLoadingScreen';
 const ANALYTICS_STATS_DOC = 'portfolio_stats';
 const ANALYTICS_COLLECTION = 'analytics';
 const ANALYTICS_DAILY_COLLECTION = 'analytics_daily';
+const NAV_LOCK_ENGAGE_Y = 4;
+const NAV_LOCK_RELEASE_Y = 24;
+const SECTION_RENDER_ORDER: PortfolioSectionKey[] = [
+  'home',
+  'about',
+  'experience',
+  'education',
+  'trainings',
+  'skills',
+  'certifications',
+  'projects',
+  'contact',
+];
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -87,12 +100,19 @@ export default function Portfolio() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isNavLockedTop, setIsNavLockedTop] = useState(true);
+  const [isDesktopMoreOpen, setIsDesktopMoreOpen] = useState(false);
+  const [isTabletMenuOpen, setIsTabletMenuOpen] = useState(false);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const navRootRef = useRef<HTMLElement | null>(null);
   const navLeftRef = useRef<HTMLDivElement | null>(null);
   const navRightRef = useRef<HTMLDivElement | null>(null);
+  const desktopMoreRef = useRef<HTMLDivElement | null>(null);
+  const tabletMenuRef = useRef<HTMLDivElement | null>(null);
+  const scrollRafRef = useRef<number | null>(null);
   const navMeasureRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const moreMeasureRef = useRef<HTMLSpanElement | null>(null);
+  const pendingNavScrollRef = useRef<{ id: string; top: number; expiresAt: number } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [desktopPrimaryCount, setDesktopPrimaryCount] = useState(5);
   const [activeDetailModal, setActiveDetailModal] = useState<{ type: 'project' | 'certification'; id: string } | null>(null);
@@ -337,7 +357,7 @@ export default function Portfolio() {
     (isEditMode ||
       Boolean(data?.contact?.intro || data?.contact?.email || data?.contact?.phone || data?.contact?.location));
 
-  const sectionNavLabels: Record<string, string> = {
+  const sectionNavLabels = useMemo<Record<PortfolioSectionKey, string>>(() => ({
     home: data?.ui?.sectionTitles?.home || 'Home',
     about: data?.ui?.sectionTitles?.about || 'About',
     experience: data?.ui?.sectionTitles?.experience || 'Experience',
@@ -347,23 +367,59 @@ export default function Portfolio() {
     projects: data?.ui?.sectionTitles?.projects || 'Projects',
     contact: data?.ui?.sectionTitles?.contact || 'Contact',
     certifications: data?.ui?.certificationsTitle || 'Certifications',
+  }), [
+    data?.ui?.sectionTitles?.home,
+    data?.ui?.sectionTitles?.about,
+    data?.ui?.sectionTitles?.experience,
+    data?.ui?.sectionTitles?.skills,
+    data?.ui?.sectionTitles?.education,
+    data?.ui?.sectionTitles?.trainings,
+    data?.ui?.sectionTitles?.projects,
+    data?.ui?.sectionTitles?.contact,
+    data?.ui?.certificationsTitle,
+  ]);
+
+  const sectionVisibilityForNav: Record<PortfolioSectionKey, boolean> = {
+    home: showHomeSection,
+    about: showAboutSection,
+    experience: showExperienceSection,
+    skills: showSkillsSection,
+    education: showEducationSection,
+    trainings: showTrainingsSection,
+    projects: showProjectsSection,
+    contact: showContactSection,
+    certifications: showCertificationsSection,
   };
 
-  const visibleNavLinks = (data?.ui?.navLinks || []).map((item) => ({
-    ...item,
-    label: sectionNavLabels[item.id] || item.label,
-  })).filter((item) => {
-    if (item.id === 'home') return showHomeSection;
-    if (item.id === 'about') return showAboutSection;
-    if (item.id === 'experience') return showExperienceSection;
-    if (item.id === 'skills') return showSkillsSection;
-    if (item.id === 'education') return showEducationSection;
-    if (item.id === 'trainings') return showTrainingsSection;
-    if (item.id === 'certifications') return showCertificationsSection;
-    if (item.id === 'projects') return showProjectsSection;
-    if (item.id === 'contact') return showContactSection;
-    return true;
-  });
+  const visibleNavLinks = useMemo(() => {
+    const configuredNavById = new Map((data?.ui?.navLinks || []).map((item) => [item.id, item]));
+
+    return SECTION_RENDER_ORDER
+      .filter((sectionId) => sectionVisibilityForNav[sectionId])
+      .map((sectionId) => {
+        const configured = configuredNavById.get(sectionId);
+        const fallbackHref = sectionId === 'home' ? '#hero' : `#${sectionId}`;
+        const href = configured?.href?.startsWith('#') ? configured.href : fallbackHref;
+
+        return {
+          id: sectionId,
+          label: sectionNavLabels[sectionId] || configured?.label || sectionId,
+          href,
+        };
+      });
+  }, [
+    data?.ui?.navLinks,
+    sectionNavLabels,
+    sectionVisibilityForNav.home,
+    sectionVisibilityForNav.about,
+    sectionVisibilityForNav.experience,
+    sectionVisibilityForNav.education,
+    sectionVisibilityForNav.trainings,
+    sectionVisibilityForNav.skills,
+    sectionVisibilityForNav.certifications,
+    sectionVisibilityForNav.projects,
+    sectionVisibilityForNav.contact,
+  ]);
 
   const recalculateDesktopNavFit = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -429,10 +485,14 @@ export default function Portfolio() {
   const primaryCount = Math.max(0, Math.min(desktopPrimaryCount, visibleNavLinks.length));
   const primaryNavLinks = visibleNavLinks.slice(0, primaryCount);
   const overflowNavLinks = visibleNavLinks.slice(primaryCount);
+  const isMoreActive = overflowNavLinks.some((item) => activeSection === item.href.replace('#', ''));
 
   const handlePortfolioDownload = async () => {
     if (!data?.portfolioPdfUrl) {
-      alert('Portfolio PDF has not been uploaded yet.');
+      sileo.warning({
+        title: 'PDF not available',
+        description: 'No portfolio PDF has been uploaded yet. Please try again later.'
+      });
       return;
     }
 
@@ -481,12 +541,52 @@ export default function Portfolio() {
 
   useEffect(() => {
     const onScroll = () => {
-      setShowScrollTop(window.scrollY > 120);
+      if (scrollRafRef.current !== null) return;
+
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        const scrollY = window.scrollY;
+
+        // Hysteresis prevents flicker when hovering near the top threshold.
+        setIsNavLockedTop((prevLocked) => {
+          if (prevLocked) {
+            return scrollY < NAV_LOCK_RELEASE_Y;
+          }
+
+          return scrollY <= NAV_LOCK_ENGAGE_Y;
+        });
+
+        setShowScrollTop((prev) => {
+          const next = scrollY > 120;
+          return prev === next ? prev : next;
+        });
+
+        const pendingNavScroll = pendingNavScrollRef.current;
+        if (pendingNavScroll) {
+          const reachedTarget = Math.abs(scrollY - pendingNavScroll.top) < 24;
+          const expired = performance.now() > pendingNavScroll.expiresAt;
+
+          if (reachedTarget || expired) {
+            pendingNavScrollRef.current = null;
+          }
+        }
+      });
     };
+
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
   }, []);
+
+  const navPositionClass = isEditMode
+    ? 'relative top-0 mx-auto'
+    : 'fixed top-0 left-1/2 -translate-x-1/2';
 
   useEffect(() => {
     const visibleIds = visibleNavLinks
@@ -501,38 +601,67 @@ export default function Portfolio() {
   useEffect(() => {
     const sectionIds = visibleNavLinks
       .map((item) => (item.href || '').replace('#', ''))
-      .filter(Boolean)
-      .map((id) => (id === 'hero' ? id : id));
+      .filter(Boolean);
 
     if (sectionIds.length === 0) return;
 
-    const observers: IntersectionObserver[] = [];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((node): node is HTMLElement => Boolean(node));
 
-    sectionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
+    if (sections.length === 0) return;
 
-      const observer = new IntersectionObserver(
-        (entries) => {
-          const entry = entries[0];
-          if (entry.isIntersecting) {
-            setActiveSection(id);
-          }
-        },
-        {
-          rootMargin: '-32% 0px -58% 0px',
-          threshold: 0.01
-        }
-      );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (pendingNavScrollRef.current) return;
 
-      observer.observe(el);
-      observers.push(observer);
-    });
+        const bestVisible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (!bestVisible) return;
+        const nextId = bestVisible.target.id;
+        setActiveSection((prev) => (prev === nextId ? prev : nextId));
+      },
+      {
+        rootMargin: '-20% 0px -45% 0px',
+        threshold: [0.18, 0.32, 0.5, 0.68]
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, [visibleNavLinks]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent | globalThis.MouseEvent) => {
+      const target = event.target as Node;
+
+      if (isDesktopMoreOpen && desktopMoreRef.current && !desktopMoreRef.current.contains(target)) {
+        setIsDesktopMoreOpen(false);
+      }
+
+      if (isTabletMenuOpen && tabletMenuRef.current && !tabletMenuRef.current.contains(target)) {
+        setIsTabletMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsDesktopMoreOpen(false);
+        setIsTabletMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      observers.forEach((observer) => observer.disconnect());
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [visibleNavLinks]);
+  }, [isDesktopMoreOpen, isTabletMenuOpen]);
 
   const handleNavClick = (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -541,11 +670,18 @@ export default function Portfolio() {
     if (!target) return;
 
     const top = Math.max(target.getBoundingClientRect().top + window.scrollY - 110, 0);
+    const distance = Math.abs(window.scrollY - top);
+    const guardDuration = Math.min(2200, Math.max(700, distance * 0.9));
+    pendingNavScrollRef.current = {
+      id: targetId,
+      top,
+      expiresAt: performance.now() + guardDuration,
+    };
+
     window.scrollTo({ top, behavior: 'smooth' });
     setActiveSection(targetId);
-
-    const opened = document.querySelectorAll('details[open]') as NodeListOf<HTMLDetailsElement>;
-    opened.forEach((detail) => detail.removeAttribute('open'));
+    setIsDesktopMoreOpen(false);
+    setIsTabletMenuOpen(false);
   };
 
   useEffect(() => {
@@ -725,9 +861,9 @@ export default function Portfolio() {
       <motion.nav 
         ref={navRootRef}
         initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className={`${isEditMode ? 'relative top-0' : 'sticky top-4'} mx-auto w-[90%] max-w-5xl rounded-full px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center relative z-50 shadow-xl shadow-[#1a1c1a]/5`}
+        animate={{ y: isEditMode ? 0 : isNavLockedTop ? 0 : 16, opacity: 1 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+        className={`${navPositionClass} w-[90%] max-w-5xl rounded-full px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center z-50 shadow-xl shadow-[#1a1c1a]/5 will-change-transform`}
       >
         <div
           aria-hidden="true"
@@ -796,12 +932,10 @@ export default function Portfolio() {
           </div>
         </div>
         <div className="hidden lg:flex items-center gap-5 absolute left-1/2 -translate-x-1/2">
-          {primaryNavLinks.map((item, idx) => (
+          {primaryNavLinks.map((item) => (
             <motion.a
               key={item.id}
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 + idx * 0.1, ease: "easeOut" }}
+              initial={false}
               whileHover={{ y: -2 }}
               className={`relative text-[15px] leading-none font-medium transition-all duration-300 ease-in-out whitespace-nowrap ${activeSection === item.href.replace('#', '') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               href={item.href || '#'}
@@ -818,64 +952,87 @@ export default function Portfolio() {
             </motion.a>
           ))}
           {overflowNavLinks.length > 0 && (
-            <motion.details
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 + primaryNavLinks.length * 0.1, ease: "easeOut" }}
-              className="relative group"
-            >
-              <summary className="list-none cursor-pointer select-none text-secondary text-[15px] font-semibold hover:text-primary transition-colors">
-                More
-              </summary>
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="absolute right-0 mt-3 w-44 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50"
+            <div ref={desktopMoreRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsDesktopMoreOpen((prev) => !prev)}
+                className={`relative cursor-pointer select-none text-[15px] font-semibold transition-colors ${isMoreActive ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                aria-haspopup="menu"
+                aria-expanded={isDesktopMoreOpen}
               >
-                {overflowNavLinks.map((item) => (
-                  <a
-                    key={item.id}
-                    className={`block rounded-lg px-3 py-2 text-sm transition-colors ${activeSection === item.href.replace('#', '') ? 'bg-surface-container-high text-primary' : 'text-secondary hover:bg-surface-container-low hover:text-primary'}`}
-                    href={item.href || '#'}
-                    onClick={handleNavClick(item.href || '#')}
+                More
+                {isMoreActive && (
+                  <motion.span
+                    className="absolute -bottom-2 left-0 right-0 h-[2px] bg-primary rounded-full"
+                    initial={{ opacity: 0, scaleX: 0.6 }}
+                    animate={{ opacity: 1, scaleX: 1 }}
+                    exit={{ opacity: 0, scaleX: 0.6 }}
+                    transition={{ duration: 0.14, ease: 'easeOut' }}
+                  />
+                )}
+              </button>
+              <AnimatePresence>
+                {isDesktopMoreOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="absolute right-0 mt-3 w-44 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50 will-change-transform"
                   >
-                    {item.label}
-                  </a>
-                ))}
-              </motion.div>
-            </motion.details>
+                    {overflowNavLinks.map((item) => (
+                      <a
+                        key={item.id}
+                        className={`block rounded-lg px-3 py-2 text-sm transition-colors ${activeSection === item.href.replace('#', '') ? 'bg-surface-container-high text-primary' : 'text-secondary hover:bg-surface-container-low hover:text-primary'}`}
+                        href={item.href || '#'}
+                        onClick={handleNavClick(item.href || '#')}
+                      >
+                        {item.label}
+                      </a>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
         </div>
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          initial={false}
           className="hidden md:block lg:hidden absolute left-1/2 -translate-x-1/2"
         >
-          <details className="relative">
-            <summary className="list-none cursor-pointer bg-surface-container-highest text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-outline-variant transition-colors">
-              Menu
-            </summary>
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute right-0 mt-3 w-48 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50"
+          <div ref={tabletMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsTabletMenuOpen((prev) => !prev)}
+              className="cursor-pointer bg-surface-container-highest text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-outline-variant transition-colors"
+              aria-haspopup="menu"
+              aria-expanded={isTabletMenuOpen}
             >
-              {visibleNavLinks.map((item) => (
-                <a
-                  key={item.id}
-                  className={`block rounded-lg px-3 py-2 text-sm transition-colors ${activeSection === item.href.replace('#', '') ? 'bg-surface-container-high text-primary' : 'text-secondary hover:bg-surface-container-low hover:text-primary'}`}
-                  href={item.href || '#'}
-                  onClick={handleNavClick(item.href || '#')}
+              Menu
+            </button>
+            <AnimatePresence>
+              {isTabletMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="absolute right-0 mt-3 w-48 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50 will-change-transform"
                 >
-                  {item.label}
-                </a>
-              ))}
-            </motion.div>
-          </details>
+                  {visibleNavLinks.map((item) => (
+                    <a
+                      key={item.id}
+                      className={`block rounded-lg px-3 py-2 text-sm transition-colors ${activeSection === item.href.replace('#', '') ? 'bg-surface-container-high text-primary' : 'text-secondary hover:bg-surface-container-low hover:text-primary'}`}
+                      href={item.href || '#'}
+                      onClick={handleNavClick(item.href || '#')}
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
         <div ref={navRightRef} className="flex items-center justify-end">
           {isAdmin ? (
@@ -1033,6 +1190,7 @@ export default function Portfolio() {
                 whileTap={{ scale: 0.95 }}
                 className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-secondary transition-colors duration-300 shadow-lg shadow-primary/10 relative overflow-hidden group"
                 href="#contact"
+                onClick={handleNavClick('#contact')}
               >
                 <span className="relative z-10">Contact Me</span>
                 <motion.span
