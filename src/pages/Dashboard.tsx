@@ -16,6 +16,22 @@ const SUPPORT_HOURS = 'Monday-Friday, 9:00 AM - 6:00 PM (UTC+8)';
 const POLICY_EFFECTIVE_DATE = '2026-03-23';
 const POLICY_VERSION = 'v1.0';
 
+function mergeGalleryImages(primaryUrl?: string, imageUrls?: string[]) {
+  const merged = [...(primaryUrl ? [primaryUrl] : []), ...(imageUrls || [])];
+  return merged.filter((url, index, arr) => Boolean(url) && arr.indexOf(url) === index);
+}
+
+function getUploadProgressByPrefix(uploadProgress: Record<string, number>, prefix: string) {
+  const matches = Object.entries(uploadProgress)
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([, value]) => value);
+
+  if (matches.length === 0) return null;
+
+  const total = matches.reduce((sum, value) => sum + value, 0);
+  return Math.round(total / matches.length);
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
@@ -100,6 +116,83 @@ export default function Dashboard() {
         return newProgress;
       });
     }
+  };
+
+  const uploadMultipleFiles = async (files: File[], path: string, progressPrefix: string) => {
+    const uploadedUrls: string[] = [];
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      await handleFileUpload(file, path, (url) => {
+        uploadedUrls.push(url);
+      }, `${progressPrefix}-${index}`);
+    }
+
+    return uploadedUrls;
+  };
+
+  const updateCertificationGallery = (certId: string, images: string[]) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      certifications: prev.certifications.map(cert => cert.id === certId
+        ? { ...cert, imageUrl: images[0] || '', imageUrls: images }
+        : cert)
+    } : null);
+  };
+
+  const appendCertificationGallery = (certId: string, images: string[]) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      certifications: prev.certifications.map(cert => {
+        if (cert.id !== certId) return cert;
+        const merged = mergeGalleryImages(cert.imageUrl, [...(cert.imageUrls || []), ...images]);
+        return { ...cert, imageUrl: merged[0] || '', imageUrls: merged };
+      })
+    } : null);
+  };
+
+  const removeCertificationGalleryImage = (certId: string, imageIndex: number) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      certifications: prev.certifications.map(cert => {
+        if (cert.id !== certId) return cert;
+        const merged = mergeGalleryImages(cert.imageUrl, cert.imageUrls);
+        const filtered = merged.filter((_, index) => index !== imageIndex);
+        return { ...cert, imageUrl: filtered[0] || '', imageUrls: filtered };
+      })
+    } : null);
+  };
+
+  const updateProjectGallery = (projectId: string, images: string[]) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      projects: prev.projects.map(project => project.id === projectId
+        ? { ...project, imageUrl: images[0] || '', imageUrls: images }
+        : project)
+    } : null);
+  };
+
+  const appendProjectGallery = (projectId: string, images: string[]) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      projects: prev.projects.map(project => {
+        if (project.id !== projectId) return project;
+        const merged = mergeGalleryImages(project.imageUrl, [...(project.imageUrls || []), ...images]);
+        return { ...project, imageUrl: merged[0] || '', imageUrls: merged };
+      })
+    } : null);
+  };
+
+  const removeProjectGalleryImage = (projectId: string, imageIndex: number) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      projects: prev.projects.map(project => {
+        if (project.id !== projectId) return project;
+        const merged = mergeGalleryImages(project.imageUrl, project.imageUrls);
+        const filtered = merged.filter((_, index) => index !== imageIndex);
+        return { ...project, imageUrl: filtered[0] || '', imageUrls: filtered };
+      })
+    } : null);
   };
 
   useEffect(() => {
@@ -494,7 +587,7 @@ export default function Dashboard() {
         ...prev,
         certifications: [
           ...prev.certifications,
-          { id: Date.now().toString(), title: 'New Certification', issuer: 'Issuer' }
+          { id: Date.now().toString(), title: 'New Certification', issuer: 'Issuer', imageUrl: '', imageUrls: [] }
         ]
       };
     });
@@ -518,7 +611,7 @@ export default function Dashboard() {
         ...prev,
         projects: [
           ...prev.projects,
-          { id: Date.now().toString(), title: 'New Project', description: 'Description', link: '', imageUrl: '', tags: [], itemCount: '', ctaLabel: 'View Project' }
+          { id: Date.now().toString(), title: 'New Project', description: 'Description', link: '', imageUrl: '', imageUrls: [], tags: [], itemCount: '', ctaLabel: 'View Project' }
         ]
       };
     });
@@ -1496,7 +1589,11 @@ export default function Dashboard() {
               </summary>
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
                 <div className="mt-6 space-y-6">
-                  {formData.certifications.map((cert) => (
+                  {formData.certifications.map((cert) => {
+                    const certImages = mergeGalleryImages(cert.imageUrl, cert.imageUrls);
+                    const certUploadProgress = getUploadProgressByPrefix(uploadProgress, `cert-${cert.id}-`);
+
+                    return (
                       <div key={cert.id} className="bg-surface-container-low p-6 rounded-lg space-y-4 relative">
                         <button onClick={() => handleRemoveCertification(cert.id)} className="absolute top-4 right-4 text-secondary hover:text-error">
                           <span className="material-symbols-outlined" data-icon="delete">delete</span>
@@ -1504,11 +1601,11 @@ export default function Dashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-8">
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certification Name</label>
-                            <input value={cert.title} onChange={(e) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, title: e.target.value} : c)} : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary" type="text" />
+                            <input value={cert.title} onChange={(e) => setFormData(prev => prev ? { ...prev, certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, title: e.target.value } : c) } : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary" type="text" />
                           </div>
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Background Color Theme</label>
-                            <select value={cert.bgColor || ''} onChange={(e) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, bgColor: e.target.value} : c)} : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary">
+                            <select value={cert.bgColor || ''} onChange={(e) => setFormData(prev => prev ? { ...prev, certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, bgColor: e.target.value } : c) } : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary">
                               <option value="bg-tertiary-container text-primary-fixed">Soft Gold &amp; Brown</option>
                               <option value="bg-surface-container-highest text-primary">Slate &amp; Dark</option>
                               <option value="bg-secondary-container text-on-secondary-container">Warm Mocha</option>
@@ -1520,52 +1617,70 @@ export default function Dashboard() {
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Icon Picker</label>
                             <div className="flex items-center gap-3 bg-white p-2 rounded relative">
                               <div className="flex-1">
-                                <IconPicker value={cert.iconName || 'verified'} onChange={(val) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, iconName: val} : c)} : null)} label="Choose Icon" className="w-full" />
+                                <IconPicker value={cert.iconName || 'verified'} onChange={(val) => setFormData(prev => prev ? { ...prev, certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, iconName: val } : c) } : null)} label="Choose Icon" className="w-full" />
                               </div>
                             </div>
                           </div>
                           <div>
-                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certificate Image Upload</label>
+                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certificate Gallery Upload</label>
                             <div
                               onClick={() => document.getElementById(`cert-img-upload-${cert.id}`)?.click()}
                               className={uploadDropzoneClass}
                             >
-                              {cert.imageUrl ? (
-                                <img src={cert.imageUrl} className="h-9 w-9 rounded object-cover" alt="Certificate" />
+                              {certImages[0] ? (
+                                <img src={certImages[0]} className="h-9 w-9 rounded object-cover" alt="Certificate" />
                               ) : (
                                 <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
                               )}
                               <span className="text-xs text-secondary truncate">
-                                {uploadProgress[`cert-${cert.id}`] !== undefined
-                                  ? `Uploading... ${Math.round(uploadProgress[`cert-${cert.id}`])}%`
-                                  : (cert.imageUrl ? 'Change Certificate Image (.png, .jpg)' : 'Upload Certificate Image (.png, .jpg)')}
+                                {certUploadProgress !== null
+                                  ? `Uploading... ${certUploadProgress}%`
+                                  : (certImages.length > 0 ? `Add More Certificate Images (${certImages.length})` : 'Upload Certificate Images (.png, .jpg)')}
                               </span>
-                              {cert.imageUrl && (
+                              {certImages.length > 0 && (
                                 <button
                                   type="button"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     event.preventDefault();
-                                    setFormData(prev => prev ? {
-                                      ...prev,
-                                      certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, imageUrl: '' } : c)
-                                    } : null);
+                                    updateCertificationGallery(cert.id, []);
                                   }}
                                   className={uploadDeleteActionClass}
                                 >
-                                  Delete
+                                  Clear All
                                 </button>
                               )}
-                              <input type="file" accept="image/*" className="hidden" id={`cert-img-upload-${cert.id}`} onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleFileUpload(file, 'certificates', (url) => setFormData(prev => prev ? {...prev, certifications: prev.certifications.map(c => c.id === cert.id ? {...c, imageUrl: url} : c)} : null), `cert-${cert.id}`);
+                              <input type="file" accept="image/*" multiple className="hidden" id={`cert-img-upload-${cert.id}`} onChange={async (e) => {
+                                const files = Array.from(e.target.files || []) as File[];
+                                if (files.length > 0) {
+                                  const uploadedUrls = await uploadMultipleFiles(files, 'certificates', `cert-${cert.id}`);
+                                  appendCertificationGallery(cert.id, uploadedUrls);
+                                }
                                 e.currentTarget.value = '';
                               }} />
                             </div>
                           </div>
                         </div>
+
+                        {certImages.length > 0 && (
+                          <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                            {certImages.map((image, imageIndex) => (
+                              <div key={`${cert.id}-gallery-${imageIndex}`} className="relative group/thumb rounded-md overflow-hidden border border-outline-variant/20 bg-white">
+                                <img src={image} className="w-full h-14 object-cover" alt={`Certification ${imageIndex + 1}`} />
+                                <button
+                                  type="button"
+                                  onClick={() => removeCertificationGalleryImage(cert.id, imageIndex)}
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                  ))}
+                    );
+                  })}
                   <button onClick={handleAddCertification} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
                     + Add New Certification
                   </button>
@@ -1621,73 +1736,99 @@ export default function Dashboard() {
               </summary>
               <div className="p-6 pt-0 border-t border-outline-variant/10 bg-surface-container-lowest/50">
                 <div className="mt-6 space-y-6">
-                  {formData.projects && formData.projects.map((project) => (
-                    <div key={project.id} className="bg-white border border-outline-variant/20 p-4 rounded-xl relative">
-                      <button
-                        onClick={() => handleRemoveProject(project.id)}
-                        className="absolute top-3 right-3 text-secondary hover:text-error"
-                        title="Delete project"
-                        type="button"
-                      >
-                        <span className="material-symbols-outlined" data-icon="delete">delete</span>
-                      </button>
-                      <div className="space-y-3 pr-8">
-                        <div
-                          onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()}
-                          className={uploadDropzoneClass}
+                  {formData.projects && formData.projects.map((project) => {
+                    const projectImages = mergeGalleryImages(project.imageUrl, project.imageUrls);
+                    const projectUploadProgress = getUploadProgressByPrefix(uploadProgress, `project-${project.id}-`);
+
+                    return (
+                      <div key={project.id} className="bg-white border border-outline-variant/20 p-4 rounded-xl relative">
+                        <button
+                          onClick={() => handleRemoveProject(project.id)}
+                          className="absolute top-3 right-3 text-secondary hover:text-error"
+                          title="Delete project"
+                          type="button"
                         >
-                          {project.imageUrl ? (
-                            <img src={project.imageUrl} className="h-9 w-9 rounded object-cover" alt="Project" />
-                          ) : (
-                            <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                          <span className="material-symbols-outlined" data-icon="delete">delete</span>
+                        </button>
+                        <div className="space-y-3 pr-8">
+                          <div
+                            onClick={() => document.getElementById(`proj-img-${project.id}`)?.click()}
+                            className={uploadDropzoneClass}
+                          >
+                            {projectImages[0] ? (
+                              <img src={projectImages[0]} className="h-9 w-9 rounded object-cover" alt="Project" />
+                            ) : (
+                              <span className="material-symbols-outlined text-secondary" data-icon="upload_file">upload_file</span>
+                            )}
+                            <span className="text-xs text-secondary truncate">
+                              {projectUploadProgress !== null
+                                ? `Uploading... ${projectUploadProgress}%`
+                                : (projectImages.length > 0 ? `Add More Project Images (${projectImages.length})` : 'Upload Project Images (.png, .jpg)')}
+                            </span>
+                            {projectImages.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  event.preventDefault();
+                                  updateProjectGallery(project.id, []);
+                                }}
+                                className={uploadDeleteActionClass}
+                              >
+                                Clear All
+                              </button>
+                            )}
+                            <input type="file" accept="image/*" multiple className="hidden" id={`proj-img-${project.id}`} onChange={async (e) => {
+                              const files = Array.from(e.target.files || []) as File[];
+                              if (files.length > 0) {
+                                const uploadedUrls = await uploadMultipleFiles(files, 'projects', `project-${project.id}`);
+                                appendProjectGallery(project.id, uploadedUrls);
+                              }
+                              e.currentTarget.value = '';
+                            }} />
+                          </div>
+
+                          {projectImages.length > 0 && (
+                            <div className="grid grid-cols-5 md:grid-cols-7 gap-2">
+                              {projectImages.map((image, imageIndex) => (
+                                <div key={`${project.id}-gallery-${imageIndex}`} className="relative group/thumb rounded-md overflow-hidden border border-outline-variant/20">
+                                  <img src={image} alt={`Project ${imageIndex + 1}`} className="w-full h-12 object-cover" />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProjectGalleryImage(project.id, imageIndex)}
+                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
                           )}
-                          <span className="text-xs text-secondary truncate">
-                            {uploadProgress[`project-${project.id}`] !== undefined
-                              ? `Uploading... ${Math.round(uploadProgress[`project-${project.id}`])}%`
-                              : (project.imageUrl ? 'Change Project Image (.png, .jpg)' : 'Upload Project Image (.png, .jpg)')}
-                          </span>
-                          {project.imageUrl && (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                event.preventDefault();
-                                handleProjectChange(project.id, 'imageUrl', '');
-                              }}
-                              className={uploadDeleteActionClass}
-                            >
-                              Delete
-                            </button>
-                          )}
-                          <input type="file" accept="image/*" className="hidden" id={`proj-img-${project.id}`} onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'projects', (url) => handleProjectChange(project.id, 'imageUrl', url), `project-${project.id}`);
-                            e.currentTarget.value = '';
-                          }} />
+
+                          <input className="w-full bg-surface-container-low border-none rounded p-2 font-bold text-sm text-primary" type="text" value={project.title} onChange={(e) => handleProjectChange(project.id, 'title', e.target.value)} placeholder="Project Title" />
+                          <textarea className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-on-surface-variant" rows={2} value={project.description} onChange={(e) => handleProjectChange(project.id, 'description', e.target.value)} placeholder="Project Description"></textarea>
+                          <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.link} onChange={(e) => handleProjectChange(project.id, 'link', e.target.value)} placeholder="Project Link (URL)" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.itemCount || ''} onChange={(e) => handleProjectChange(project.id, 'itemCount', e.target.value)} placeholder="Metric (e.g. 12 SOPs)" />
+                            <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.ctaLabel || ''} onChange={(e) => handleProjectChange(project.id, 'ctaLabel', e.target.value)} placeholder="CTA Label" />
+                          </div>
+                          <input
+                            className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary"
+                            type="text"
+                            value={(project.tags || []).join(', ')}
+                            onChange={(e) => {
+                              const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+                              setFormData(prev => prev ? {
+                                ...prev,
+                                projects: prev.projects.map(p => p.id === project.id ? { ...p, tags } : p)
+                              } : null);
+                            }}
+                            placeholder="Tags (comma separated)"
+                          />
                         </div>
-                        <input className="w-full bg-surface-container-low border-none rounded p-2 font-bold text-sm text-primary" type="text" value={project.title} onChange={(e) => handleProjectChange(project.id, 'title', e.target.value)} placeholder="Project Title" />
-                        <textarea className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-on-surface-variant" rows={2} value={project.description} onChange={(e) => handleProjectChange(project.id, 'description', e.target.value)} placeholder="Project Description"></textarea>
-                        <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.link} onChange={(e) => handleProjectChange(project.id, 'link', e.target.value)} placeholder="Project Link (URL)" />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.itemCount || ''} onChange={(e) => handleProjectChange(project.id, 'itemCount', e.target.value)} placeholder="Metric (e.g. 12 SOPs)" />
-                          <input className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary" type="text" value={project.ctaLabel || ''} onChange={(e) => handleProjectChange(project.id, 'ctaLabel', e.target.value)} placeholder="CTA Label" />
-                        </div>
-                        <input
-                          className="w-full bg-surface-container-low border-none rounded p-2 text-xs text-primary"
-                          type="text"
-                          value={(project.tags || []).join(', ')}
-                          onChange={(e) => {
-                            const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
-                            setFormData(prev => prev ? {
-                              ...prev,
-                              projects: prev.projects.map(p => p.id === project.id ? { ...p, tags } : p)
-                            } : null);
-                          }}
-                          placeholder="Tags (comma separated)"
-                        />
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <button onClick={handleAddProject} className="w-full py-4 border-2 border-dashed border-outline-variant/50 rounded-lg text-secondary font-bold text-sm hover:border-secondary hover:text-primary transition-all">
                     + Add New Project
                   </button>

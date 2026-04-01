@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
@@ -50,6 +50,22 @@ function toRawDeliveryUrl(url: string) {
   }
 }
 
+function mergeGalleryImages(primaryUrl?: string, imageUrls?: string[]) {
+  const merged = [...(primaryUrl ? [primaryUrl] : []), ...(imageUrls || [])];
+  return merged.filter((url, index, arr) => Boolean(url) && arr.indexOf(url) === index);
+}
+
+function getUploadProgressByPrefix(uploadProgress: Record<string, number>, prefix: string) {
+  const matches = Object.entries(uploadProgress)
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([, progress]) => progress);
+
+  if (matches.length === 0) return null;
+
+  const total = matches.reduce((sum, value) => sum + value, 0);
+  return Math.round(total / matches.length);
+}
+
 const EditModeContext = createContext(false);
 
 function InlineText({ value, onChange, className, multiline = false }: { value: string, onChange: (val: string) => void, className?: string, multiline?: boolean }) {
@@ -78,6 +94,43 @@ export default function Portfolio() {
   const moreMeasureRef = useRef<HTMLSpanElement | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [desktopPrimaryCount, setDesktopPrimaryCount] = useState(5);
+  const [activeDetailModal, setActiveDetailModal] = useState<{ type: 'project' | 'certification'; id: string } | null>(null);
+  const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
+
+  const openDetailModal = useCallback((type: 'project' | 'certification', id: string) => {
+    setActiveDetailModal({ type, id });
+    setActiveDetailImageIndex(0);
+  }, []);
+
+  const closeDetailModal = useCallback(() => {
+    setActiveDetailModal(null);
+    setActiveDetailImageIndex(0);
+  }, []);
+
+  const activeProject = activeDetailModal?.type === 'project'
+    ? data?.projects.find((project) => project.id === activeDetailModal.id)
+    : null;
+  const activeCertification = activeDetailModal?.type === 'certification'
+    ? data?.certifications.find((cert) => cert.id === activeDetailModal.id)
+    : null;
+  const activeDetailImages = activeProject
+    ? mergeGalleryImages(activeProject.imageUrl, activeProject.imageUrls)
+    : activeCertification
+      ? mergeGalleryImages(activeCertification.imageUrl, activeCertification.imageUrls)
+      : [];
+  const boundedDetailImageIndex = activeDetailImages.length > 0
+    ? Math.min(activeDetailImageIndex, activeDetailImages.length - 1)
+    : 0;
+
+  const showNextDetailImage = useCallback(() => {
+    if (activeDetailImages.length < 2) return;
+    setActiveDetailImageIndex((prev) => (prev + 1) % activeDetailImages.length);
+  }, [activeDetailImages.length]);
+
+  const showPreviousDetailImage = useCallback(() => {
+    if (activeDetailImages.length < 2) return;
+    setActiveDetailImageIndex((prev) => (prev - 1 + activeDetailImages.length) % activeDetailImages.length);
+  }, [activeDetailImages.length]);
 
   // ANALYTICS TRACKING
   useEffect(() => {
@@ -494,6 +547,53 @@ export default function Portfolio() {
     opened.forEach((detail) => detail.removeAttribute('open'));
   };
 
+  useEffect(() => {
+    if (!activeDetailModal) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeDetailModal();
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        showNextDetailImage();
+      }
+      if (event.key === 'ArrowLeft') {
+        showPreviousDetailImage();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [activeDetailModal, closeDetailModal, showNextDetailImage, showPreviousDetailImage]);
+
+  useEffect(() => {
+    if (!activeDetailModal) return;
+
+    const missingProject = activeDetailModal.type === 'project' && !activeProject;
+    const missingCertification = activeDetailModal.type === 'certification' && !activeCertification;
+
+    if (missingProject || missingCertification) {
+      closeDetailModal();
+    }
+  }, [activeDetailModal, activeProject, activeCertification, closeDetailModal]);
+
+  useEffect(() => {
+    if (activeDetailImages.length === 0) {
+      setActiveDetailImageIndex(0);
+      return;
+    }
+
+    setActiveDetailImageIndex((prev) => Math.min(prev, activeDetailImages.length - 1));
+  }, [activeDetailImages.length]);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-surface text-primary">Loading...</div>;
   }
@@ -510,6 +610,83 @@ export default function Portfolio() {
       </div>
     );
   }
+
+  const updateCertificationGallery = (certId: string, images: string[]) => {
+    const nextCertifications = data.certifications.map((cert) => {
+      if (cert.id !== certId) return cert;
+      return {
+        ...cert,
+        imageUrl: images[0] || '',
+        imageUrls: images,
+      };
+    });
+
+    updateData({ certifications: nextCertifications });
+  };
+
+  const appendCertificationGallery = (certId: string, newImages: string[]) => {
+    const cert = data.certifications.find((entry) => entry.id === certId);
+    if (!cert) return;
+
+    const merged = mergeGalleryImages(cert.imageUrl, [...(cert.imageUrls || []), ...newImages]);
+    updateCertificationGallery(certId, merged);
+  };
+
+  const removeCertificationGalleryImage = (certId: string, imageIndex: number) => {
+    const cert = data.certifications.find((entry) => entry.id === certId);
+    if (!cert) return;
+
+    const merged = mergeGalleryImages(cert.imageUrl, cert.imageUrls);
+    const filtered = merged.filter((_, index) => index !== imageIndex);
+    updateCertificationGallery(certId, filtered);
+  };
+
+  const updateProjectGallery = (projectId: string, images: string[]) => {
+    const nextProjects = data.projects.map((project) => {
+      if (project.id !== projectId) return project;
+      return {
+        ...project,
+        imageUrl: images[0] || '',
+        imageUrls: images,
+      };
+    });
+
+    updateData({ projects: nextProjects });
+  };
+
+  const appendProjectGallery = (projectId: string, newImages: string[]) => {
+    const project = data.projects.find((entry) => entry.id === projectId);
+    if (!project) return;
+
+    const merged = mergeGalleryImages(project.imageUrl, [...(project.imageUrls || []), ...newImages]);
+    updateProjectGallery(projectId, merged);
+  };
+
+  const removeProjectGalleryImage = (projectId: string, imageIndex: number) => {
+    const project = data.projects.find((entry) => entry.id === projectId);
+    if (!project) return;
+
+    const merged = mergeGalleryImages(project.imageUrl, project.imageUrls);
+    const filtered = merged.filter((_, index) => index !== imageIndex);
+    updateProjectGallery(projectId, filtered);
+  };
+
+  const uploadMultipleFiles = async (
+    files: File[],
+    path: string,
+    progressPrefix: string
+  ) => {
+    const uploadedUrls: string[] = [];
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      await handleFileUpload(file, path, (url) => {
+        uploadedUrls.push(url);
+      }, `${progressPrefix}-${index}`);
+    }
+
+    return uploadedUrls;
+  };
 
   return (
     <EditModeContext.Provider value={isEditMode}>
@@ -1837,153 +2014,181 @@ export default function Portfolio() {
             variants={staggerContainer}
             className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
           >
-            {data.certifications.map((cert, i) => (
-              <motion.div
-                key={cert.id}
-                variants={fadeUp}
-                whileHover={{ y: -8, boxShadow: "0 20px 40px -10px rgba(0,0,0,0.1)" }}
-                className="group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1 transition-all duration-300"
-              >
-                {isEditMode && (
-                  <button 
-                    onClick={() => {
-                      const newCerts = data.certifications.filter((_, idx) => idx !== i);
-                      updateData({ certifications: newCerts });
-                    }}
-                    className="absolute right-2 top-2 text-error bg-white rounded-full p-1 hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow border border-error/10"
-                    title="Remove Certification"
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                )}
-                
-                {/* Visual Header Part */}
-                <div className={`aspect-[5/3] w-full flex items-center justify-center relative overflow-hidden ${cert.bgColor || 'bg-secondary-container text-on-secondary-container'}`}>
-                  {cert.imageUrl ? (
-                    <motion.img
-                      whileHover={{ scale: 1.05 }}
-                      transition={{ duration: 0.4 }}
-                      src={cert.imageUrl}
-                      alt={cert.title}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <motion.span
-                      initial={{ scale: 0, rotate: -180 }}
-                      whileInView={{ scale: 1, rotate: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.1, duration: 0.6 }}
-                      className="material-symbols-outlined text-5xl drop-shadow-md"
-                      data-icon={cert.iconName || 'workspace_premium'}
-                      style={{ fontVariationSettings: "'FILL' 1" }}
-                    >
-                      {cert.iconName || 'workspace_premium'}
-                    </motion.span>
-                  )}
-                  {isEditMode && !cert.imageUrl && (
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 backdrop-blur-[2px]">
-                      <button
-                        onClick={() => fileInputRefs.current[`cert-${cert.id}`]?.click()}
-                        className="text-xs font-bold bg-white text-primary px-4 py-2 rounded-full hover:bg-surface-container-low transition-colors shadow-lg"
-                      >
-                        Upload Image Proof
-                      </button>
-                    </div>
-                  )}
-                </div>
+            {data.certifications.map((cert, i) => {
+              const certImages = mergeGalleryImages(cert.imageUrl, cert.imageUrls);
+              const certCoverImage = certImages[0];
+              const certUploadProgress = getUploadProgressByPrefix(uploadProgress, `cert-${cert.id}-`);
 
-                {/* Content Floor */}
-                <div className="p-4 md:p-5 flex flex-col flex-1 bg-surface">
-                  <h5 className="font-headline font-bold text-lg md:text-xl text-primary leading-tight mb-1.5">
-                    <InlineText value={cert.title} onChange={(val) => {
-                      const newCerts = [...data.certifications];
-                      newCerts[i].title = val;
-                      updateData({ certifications: newCerts });
-                    }} />
-                  </h5>
-                  <p className="text-xs md:text-sm font-medium text-secondary mb-3">
-                    <InlineText value={cert.issuer} onChange={(val) => {
-                      const newCerts = [...data.certifications];
-                      newCerts[i].issuer = val;
-                      updateData({ certifications: newCerts });
-                    }} />
-                  </p>
-                  
+              return (
+                <motion.div
+                  key={cert.id}
+                  variants={fadeUp}
+                  whileHover={{ y: -8, boxShadow: '0 20px 40px -10px rgba(0,0,0,0.1)' }}
+                  className="group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1 transition-all duration-300"
+                >
                   {isEditMode && (
-                    <div className="mt-auto pt-4 border-t border-outline-variant/20 space-y-3">
-                      <div className="text-[10px] font-bold text-outline-variant uppercase">Admin Controls</div>
-                      <IconPicker
-                        value={cert.iconName || ''}
-                        onChange={(val) => {
-                          const newCerts = [...data.certifications];
-                          newCerts[i].iconName = val;
-                          updateData({ certifications: newCerts });
-                        }}
-                        label="Certification Icon"
+                    <button
+                      onClick={() => {
+                        const newCerts = data.certifications.filter((_, idx) => idx !== i);
+                        updateData({ certifications: newCerts });
+                      }}
+                      className="absolute right-2 top-2 text-error bg-white rounded-full p-1 hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow border border-error/10"
+                      title="Remove Certification"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  )}
+
+                  <div className={`aspect-[5/3] w-full flex items-center justify-center relative overflow-hidden ${cert.bgColor || 'bg-secondary-container text-on-secondary-container'}`}>
+                    {certCoverImage ? (
+                      <motion.img
+                        whileHover={{ scale: 1.05 }}
+                        transition={{ duration: 0.4 }}
+                        src={certCoverImage}
+                        alt={cert.title}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
                       />
-                      <select
-                        value={cert.bgColor || 'bg-secondary-container text-on-secondary-container'}
-                        onChange={(e) => {
-                          const newCerts = [...data.certifications];
-                          newCerts[i].bgColor = e.target.value;
-                          updateData({ certifications: newCerts });
-                        }}
-                        className="w-full bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                    ) : (
+                      <motion.span
+                        initial={{ scale: 0, rotate: -180 }}
+                        whileInView={{ scale: 1, rotate: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.1, duration: 0.6 }}
+                        className="material-symbols-outlined text-5xl drop-shadow-md"
+                        data-icon={cert.iconName || 'workspace_premium'}
+                        style={{ fontVariationSettings: "'FILL' 1" }}
                       >
-                        <option value="bg-tertiary-container text-primary-fixed">Soft Gold & Brown</option>
-                        <option value="bg-surface-container-highest text-primary">Slate & Dark</option>
-                        <option value="bg-secondary-container text-on-secondary-container">Warm Gray & Espresso</option>
-                        <option value="bg-primary/10 text-primary">Classic Brand</option>
-                      </select>
-                      
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          ref={el => fileInputRefs.current[`cert-${cert.id}`] = el}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              handleFileUpload(file, 'certificates', (url) => {
-                                const newCerts = [...data.certifications];
-                                newCerts[i].imageUrl = url;
-                                updateData({ certifications: newCerts });
-                              }, `cert-${cert.id}`);
-                            }
-                            e.currentTarget.value = '';
+                        {cert.iconName || 'workspace_premium'}
+                      </motion.span>
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/70 via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-3">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDetailModal('certification', cert.id);
+                        }}
+                        className="text-white text-xs md:text-sm font-bold bg-black/30 backdrop-blur px-3 py-1.5 rounded-full hover:bg-black/45 transition-colors"
+                      >
+                        View Details
+                      </button>
+                      {certImages.length > 0 && (
+                        <span className="text-[11px] text-white/95 bg-black/25 backdrop-blur px-2 py-1 rounded-full">
+                          {certImages.length} photo{certImages.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 md:p-5 flex flex-col flex-1 bg-surface">
+                    <h5 className="font-headline font-bold text-lg md:text-xl text-primary leading-tight mb-1.5">
+                      <InlineText value={cert.title} onChange={(val) => {
+                        const newCerts = [...data.certifications];
+                        newCerts[i].title = val;
+                        updateData({ certifications: newCerts });
+                      }} />
+                    </h5>
+                    <p className="text-xs md:text-sm font-medium text-secondary mb-3">
+                      <InlineText value={cert.issuer} onChange={(val) => {
+                        const newCerts = [...data.certifications];
+                        newCerts[i].issuer = val;
+                        updateData({ certifications: newCerts });
+                      }} />
+                    </p>
+
+                    {isEditMode && (
+                      <div className="mt-4 pt-4 border-t border-outline-variant/20 space-y-3">
+                        <div className="text-[10px] font-bold text-outline-variant uppercase">Admin Controls</div>
+                        <IconPicker
+                          value={cert.iconName || ''}
+                          onChange={(val) => {
+                            const newCerts = [...data.certifications];
+                            newCerts[i].iconName = val;
+                            updateData({ certifications: newCerts });
                           }}
-                          className="hidden"
+                          label="Certification Icon"
                         />
-                        <button
-                          onClick={() => fileInputRefs.current[`cert-${cert.id}`]?.click()}
-                          className="flex-1 text-xs font-bold bg-primary/10 text-primary px-2 py-2 rounded hover:bg-primary/20 transition-colors"
+                        <select
+                          value={cert.bgColor || 'bg-secondary-container text-on-secondary-container'}
+                          onChange={(e) => {
+                            const newCerts = [...data.certifications];
+                            newCerts[i].bgColor = e.target.value;
+                            updateData({ certifications: newCerts });
+                          }}
+                          className="w-full bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
                         >
-                          {uploadProgress[`cert-${cert.id}`] !== undefined ? `Uploading ${Math.round(uploadProgress[`cert-${cert.id}`])}%` : (cert.imageUrl ? 'Change Image' : 'Upload Image')}
-                        </button>
-                        {cert.imageUrl && (
-                          <button
-                            onClick={() => {
-                              const newCerts = [...data.certifications];
-                              newCerts[i].imageUrl = '';
-                              updateData({ certifications: newCerts });
+                          <option value="bg-tertiary-container text-primary-fixed">Soft Gold & Brown</option>
+                          <option value="bg-surface-container-highest text-primary">Slate & Dark</option>
+                          <option value="bg-secondary-container text-on-secondary-container">Warm Gray & Espresso</option>
+                          <option value="bg-primary/10 text-primary">Classic Brand</option>
+                        </select>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            ref={(el) => { fileInputRefs.current[`cert-gallery-${cert.id}`] = el; }}
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || []) as File[];
+                              if (files.length > 0) {
+                                const uploadedUrls = await uploadMultipleFiles(files, 'certificates', `cert-${cert.id}`);
+                                appendCertificationGallery(cert.id, uploadedUrls);
+                              }
+                              e.currentTarget.value = '';
                             }}
-                            className="text-xs font-bold bg-error/10 text-error px-3 py-2 rounded hover:bg-error/20 transition-colors"
+                            className="hidden"
+                          />
+                          <button
+                            onClick={() => fileInputRefs.current[`cert-gallery-${cert.id}`]?.click()}
+                            className="flex-1 text-xs font-bold bg-primary/10 text-primary px-2 py-2 rounded hover:bg-primary/20 transition-colors"
                           >
-                            Remove
+                            {certUploadProgress !== null ? `Uploading ${certUploadProgress}%` : 'Upload Photos'}
                           </button>
+                          {certImages.length > 0 && (
+                            <button
+                              onClick={() => updateCertificationGallery(cert.id, [])}
+                              className="text-xs font-bold bg-error/10 text-error px-3 py-2 rounded hover:bg-error/20 transition-colors"
+                            >
+                              Remove All
+                            </button>
+                          )}
+                        </div>
+
+                        {certImages.length > 0 && (
+                          <div className="grid grid-cols-4 gap-2">
+                            {certImages.map((image, imageIndex) => (
+                              <div key={`${cert.id}-gallery-${imageIndex}`} className="relative group/thumb rounded-md overflow-hidden border border-outline-variant/20">
+                                <img
+                                  src={image}
+                                  alt={`${cert.title} image ${imageIndex + 1}`}
+                                  className="w-full h-16 object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeCertificationGalleryImage(cert.id, imageIndex)}
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
             {isEditMode && (
               <motion.div variants={fadeUp} className="flex items-center justify-center col-span-1 md:col-span-3 lg:col-span-4">
                 <button 
                   onClick={() => {
-                    const newCerts = [...data.certifications, { id: Date.now().toString(), title: "New Certification", issuer: "New Issuer", iconName: "workspace_premium", imageUrl: "" }];
+                    const newCerts = [...data.certifications, { id: Date.now().toString(), title: 'New Certification', issuer: 'New Issuer', iconName: 'workspace_premium', imageUrl: '', imageUrls: [] }];
                     updateData({ certifications: newCerts });
                   }}
                   className="bg-primary/10 text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-primary/20 transition-colors"
@@ -2031,114 +2236,191 @@ export default function Portfolio() {
             variants={staggerContainer}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-7"
           >
-            {(showAllProjects ? data.projects : data.projects.slice(0, 4)).map((project, index) => (
-              <motion.div
-                key={project.id}
-                variants={fadeUp}
-                whileHover={{ y: -10 }}
-                className="group cursor-pointer relative max-w-[24rem] w-full"
-              >
-                {isEditMode && (
-                  <button 
-                    onClick={() => {
-                      const newProjects = data.projects.filter(p => p.id !== project.id);
-                      updateData({ projects: newProjects });
-                    }}
-                    className="absolute -right-4 -top-4 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 bg-white rounded-full shadow-md p-1"
-                    title="Remove Project"
-                  >
-                    <span className="material-symbols-outlined">delete</span>
-                  </button>
-                )}
-                <div className="aspect-[16/10] rounded-xl overflow-hidden mb-3 md:mb-4 relative shadow-lg">
-                  <motion.img
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
-                    src={project.imageUrl}
-                    alt={project.title}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  {/* Gradient Overlay */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    whileHover={{ opacity: 1 }}
-                    className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent flex items-end p-4"
-                  >
-                    <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">View Details</span>
-                  </motion.div>
+            {(showAllProjects ? data.projects : data.projects.slice(0, 4)).map((project) => {
+              const projectImages = mergeGalleryImages(project.imageUrl, project.imageUrls);
+              const projectCoverImage = projectImages[0];
+              const projectUploadProgress = getUploadProgressByPrefix(uploadProgress, `project-${project.id}-`);
+
+              return (
+                <motion.div
+                  key={project.id}
+                  variants={fadeUp}
+                  whileHover={{ y: -10 }}
+                  className="group relative max-w-[24rem] w-full"
+                >
                   {isEditMode && (
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <input 
-                        type="file"
-                        accept="image/*"
-                        ref={el => fileInputRefs.current[`project-${project.id}`] = el}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(file, 'images', (url) => {
-                            const newProjects = [...data.projects];
-                            const pIndex = newProjects.findIndex(p => p.id === project.id);
-                            if (pIndex !== -1) {
-                              newProjects[pIndex].imageUrl = url;
-                              updateData({ projects: newProjects });
-                            }
-                          });
-                          e.currentTarget.value = '';
-                        }}
-                        className="hidden"
-                      />
-                      <button 
-                        onClick={() => fileInputRefs.current[`project-${project.id}`]?.click()}
-                        className="bg-white text-primary px-4 py-2 rounded-full font-bold text-sm"
-                      >
-                        Change Image
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        const newProjects = data.projects.filter((p) => p.id !== project.id);
+                        updateData({ projects: newProjects });
+                      }}
+                      className="absolute -right-4 -top-4 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 bg-white rounded-full shadow-md p-1"
+                      title="Remove Project"
+                    >
+                      <span className="material-symbols-outlined">delete</span>
+                    </button>
                   )}
-                </div>
-                <h3 className="font-headline text-lg md:text-xl font-bold text-primary mb-1.5 group-hover:text-secondary transition-colors">
-                  <InlineText value={project.title} onChange={(val) => {
+                  <div className="aspect-[16/10] rounded-xl overflow-hidden mb-3 md:mb-4 relative shadow-lg bg-surface-container-high">
+                    {projectCoverImage ? (
+                      <motion.img
+                        whileHover={{ scale: 1.08 }}
+                        transition={{ duration: 0.6 }}
+                        src={projectCoverImage}
+                        alt={project.title}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-container-high to-surface-container-highest">
+                        <span className="material-symbols-outlined text-4xl text-secondary/80">photo_library</span>
+                      </div>
+                    )}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      whileHover={{ opacity: 1 }}
+                      className="absolute inset-0 bg-gradient-to-t from-primary/70 via-primary/25 to-transparent flex items-end justify-between p-4"
+                    >
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDetailModal('project', project.id);
+                        }}
+                        className="text-white text-xs md:text-sm font-bold bg-black/30 backdrop-blur px-3 py-1.5 rounded-full hover:bg-black/45 transition-colors"
+                      >
+                        View Details
+                      </button>
+                      {projectImages.length > 0 && (
+                        <span className="text-[11px] text-white/95 bg-black/25 backdrop-blur px-2 py-1 rounded-full">
+                          {projectImages.length} photo{projectImages.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </motion.div>
+                    {isEditMode && (
+                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          ref={(el) => { fileInputRefs.current[`project-gallery-${project.id}`] = el; }}
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []) as File[];
+                            if (files.length > 0) {
+                              const uploadedUrls = await uploadMultipleFiles(files, 'projects', `project-${project.id}`);
+                              appendProjectGallery(project.id, uploadedUrls);
+                            }
+                            e.currentTarget.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            fileInputRefs.current[`project-gallery-${project.id}`]?.click();
+                          }}
+                          className="bg-white text-primary px-4 py-2 rounded-full font-bold text-sm shadow-lg"
+                        >
+                          Upload Photos
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="font-headline text-lg md:text-xl font-bold text-primary mb-1.5 group-hover:text-secondary transition-colors">
+                    <InlineText value={project.title} onChange={(val) => {
+                      const newProjects = [...data.projects];
+                      const pIndex = newProjects.findIndex((p) => p.id === project.id);
+                      if (pIndex !== -1) {
+                        newProjects[pIndex].title = val;
+                        updateData({ projects: newProjects });
+                      }
+                    }} />
+                  </h3>
+                  <InlineText multiline value={project.description} className="text-on-surface-variant text-sm leading-relaxed" onChange={(val) => {
                     const newProjects = [...data.projects];
-                    const pIndex = newProjects.findIndex(p => p.id === project.id);
+                    const pIndex = newProjects.findIndex((p) => p.id === project.id);
                     if (pIndex !== -1) {
-                      newProjects[pIndex].title = val;
+                      newProjects[pIndex].description = val;
                       updateData({ projects: newProjects });
                     }
                   }} />
-                </h3>
-                <InlineText multiline value={project.description} className="text-on-surface-variant text-sm leading-relaxed" onChange={(val) => {
-                  const newProjects = [...data.projects];
-                  const pIndex = newProjects.findIndex(p => p.id === project.id);
-                  if (pIndex !== -1) {
-                    newProjects[pIndex].description = val;
-                    updateData({ projects: newProjects });
-                  }
-                }} />
-                {(project.itemCount || (project.tags && project.tags.length > 0)) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {project.itemCount && (
-                      <span className="text-[10px] uppercase tracking-widest bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
-                        {project.itemCount}
-                      </span>
-                    )}
-                    {(project.tags || []).map((tag) => (
-                      <span key={`${project.id}-${tag}`} className="text-[10px] uppercase tracking-widest bg-surface-container-high px-2 py-1 rounded-full text-secondary">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {project.link && project.link !== '#' && (
-                  <a href={project.link} target="_blank" rel="noopener noreferrer" className="inline-flex mt-4 text-xs font-bold text-primary hover:text-secondary transition-colors">
-                    {project.ctaLabel || 'View Project'}
-                  </a>
-                )}
-              </motion.div>
-            ))}
+                  {(project.itemCount || (project.tags && project.tags.length > 0)) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {project.itemCount && (
+                        <span className="text-[10px] uppercase tracking-widest bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
+                          {project.itemCount}
+                        </span>
+                      )}
+                      {(project.tags || []).map((tag) => (
+                        <span key={`${project.id}-${tag}`} className="text-[10px] uppercase tracking-widest bg-surface-container-high px-2 py-1 rounded-full text-secondary">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {isEditMode && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRefs.current[`project-gallery-${project.id}`]?.click()}
+                          className="text-[11px] font-bold bg-primary/10 text-primary px-3 py-1.5 rounded hover:bg-primary/20 transition-colors"
+                        >
+                          {projectUploadProgress !== null ? `Uploading ${projectUploadProgress}%` : 'Add More Photos'}
+                        </button>
+                        {projectImages.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => updateProjectGallery(project.id, [])}
+                            className="text-[11px] font-bold bg-error/10 text-error px-3 py-1.5 rounded hover:bg-error/20 transition-colors"
+                          >
+                            Remove All
+                          </button>
+                        )}
+                      </div>
+                      {projectImages.length > 0 && (
+                        <div className="grid grid-cols-5 gap-2">
+                          {projectImages.map((image, imageIndex) => (
+                            <div key={`${project.id}-image-${imageIndex}`} className="relative group/thumb rounded-md overflow-hidden border border-outline-variant/20">
+                              <img
+                                src={image}
+                                alt={`${project.title} image ${imageIndex + 1}`}
+                                className="w-full h-14 object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeProjectGalleryImage(project.id, imageIndex)}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {project.link && project.link !== '#' && (
+                    <a
+                      href={project.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(event) => event.stopPropagation()}
+                      className="inline-flex mt-4 text-xs font-bold text-primary hover:text-secondary transition-colors"
+                    >
+                      {project.ctaLabel || 'View Project'}
+                    </a>
+                  )}
+                </motion.div>
+              );
+            })}
             {isEditMode && (
               <motion.div variants={fadeUp} className="flex items-center justify-center aspect-video rounded-xl border-2 border-dashed border-outline-variant hover:border-primary transition-colors cursor-pointer"
                 onClick={() => {
-                  const newProjects = [...data.projects, { id: Date.now().toString(), title: "New Project", description: "New Description", link: "#", imageUrl: "https://picsum.photos/seed/newproject/800/600" }];
+                  const coverImage = 'https://picsum.photos/seed/newproject/800/600';
+                  const newProjects = [...data.projects, { id: Date.now().toString(), title: 'New Project', description: 'New Description', link: '#', imageUrl: coverImage, imageUrls: [coverImage] }];
                   updateData({ projects: newProjects });
                 }}
               >
@@ -2317,6 +2599,162 @@ export default function Portfolio() {
 
       <Footer />
       </div>
+
+      <AnimatePresence>
+        {activeDetailModal && (activeProject || activeCertification) && (
+          <motion.div
+            className="fixed inset-0 z-[90] bg-[#111a1f]/65 backdrop-blur-sm p-3 md:p-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeDetailModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.96 }}
+              transition={{ duration: 0.26, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+              className="mx-auto h-full max-h-[92vh] w-full max-w-6xl rounded-3xl border border-white/15 bg-surface-container-lowest shadow-2xl overflow-hidden"
+            >
+              <div className="grid h-full grid-cols-1 lg:grid-cols-[1.08fr_0.92fr]">
+                <div className="relative bg-[#0f171c] min-h-[280px] lg:min-h-full">
+                  <AnimatePresence mode="wait">
+                    {activeDetailImages[boundedDetailImageIndex] ? (
+                      <motion.img
+                        key={activeDetailImages[boundedDetailImageIndex]}
+                        initial={{ opacity: 0, scale: 1.03 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.99 }}
+                        transition={{ duration: 0.24 }}
+                        src={activeDetailImages[boundedDetailImageIndex]}
+                        alt={(activeProject || activeCertification)?.title || 'Detail image'}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <motion.div
+                        key="no-image"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="h-full w-full flex items-center justify-center text-white/75"
+                      >
+                        <div className="text-center">
+                          <span className="material-symbols-outlined text-5xl mb-2">image_not_supported</span>
+                          <p className="text-sm">No images uploaded yet</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {activeDetailImages.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={showPreviousDetailImage}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/35 text-white backdrop-blur hover:bg-black/50 transition-colors"
+                        aria-label="Previous image"
+                      >
+                        <span className="material-symbols-outlined text-xl">chevron_left</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={showNextDetailImage}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/35 text-white backdrop-blur hover:bg-black/50 transition-colors"
+                        aria-label="Next image"
+                      >
+                        <span className="material-symbols-outlined text-xl">chevron_right</span>
+                      </button>
+                    </>
+                  )}
+
+                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent">
+                    <div className="flex items-center justify-between text-white text-xs">
+                      <span className="font-bold tracking-wide uppercase">
+                        {activeDetailModal.type === 'project' ? 'Portfolio Sample' : 'Certification'}
+                      </span>
+                      <span>
+                        {activeDetailImages.length > 0 ? `${boundedDetailImageIndex + 1} / ${activeDetailImages.length}` : '0 / 0'}
+                      </span>
+                    </div>
+
+                    {activeDetailImages.length > 1 && (
+                      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                        {activeDetailImages.map((image, index) => (
+                          <button
+                            type="button"
+                            key={`detail-thumb-${index}`}
+                            onClick={() => setActiveDetailImageIndex(index)}
+                            className={`shrink-0 w-16 h-12 rounded-md overflow-hidden border-2 transition-colors ${index === boundedDetailImageIndex ? 'border-white' : 'border-white/35 hover:border-white/60'}`}
+                          >
+                            <img src={image} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="relative flex flex-col h-full overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={closeDetailModal}
+                    className="absolute top-3 right-3 w-9 h-9 rounded-full bg-surface-container-high text-primary hover:bg-outline-variant transition-colors"
+                    aria-label="Close details"
+                  >
+                    <span className="material-symbols-outlined text-lg">close</span>
+                  </button>
+
+                  <div className="p-6 md:p-8 pt-12 md:pt-14">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-[11px] font-bold uppercase tracking-wide">
+                      <span className="material-symbols-outlined text-sm">
+                        {activeDetailModal.type === 'project' ? 'work' : 'workspace_premium'}
+                      </span>
+                      {activeDetailModal.type === 'project' ? 'Sample Work' : 'Credentials'}
+                    </div>
+
+                    <h3 className="mt-4 font-headline text-2xl md:text-3xl font-bold text-primary leading-tight">
+                      {activeProject?.title || activeCertification?.title}
+                    </h3>
+
+                    <p className="mt-2 text-sm md:text-base text-secondary font-semibold">
+                      {activeProject ? (activeProject.itemCount || 'Portfolio project') : (activeCertification?.issuer || 'Credential issuer')}
+                    </p>
+
+                    <p className="mt-5 text-sm md:text-base text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                      {activeProject?.description || `Issued by ${activeCertification?.issuer || 'a verified organization'}.`}
+                    </p>
+
+                    {activeProject && activeProject.tags && activeProject.tags.length > 0 && (
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {activeProject.tags.map((tag) => (
+                          <span key={`detail-tag-${activeProject.id}-${tag}`} className="text-[11px] uppercase tracking-widest px-2.5 py-1 rounded-full bg-surface-container-high text-secondary">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeProject?.link && activeProject.link !== '#' && (
+                      <a
+                        href={activeProject.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex mt-7 items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-full font-bold text-sm hover:bg-secondary transition-colors"
+                      >
+                        {activeProject.ctaLabel || 'Open Project'}
+                        <span className="material-symbols-outlined text-sm">north_east</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
     </EditModeContext.Provider>
   );

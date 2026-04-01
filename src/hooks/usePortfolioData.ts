@@ -148,6 +148,7 @@ export interface PortfolioData {
     issuer: string;
     iconName?: string;
     imageUrl?: string;
+    imageUrls?: string[];
     bgColor?: string;
   }[];
   expertiseCards: {
@@ -162,6 +163,7 @@ export interface PortfolioData {
     description: string;
     link: string;
     imageUrl: string;
+    imageUrls?: string[];
     tags?: string[];
     itemCount?: string;
     ctaLabel?: string;
