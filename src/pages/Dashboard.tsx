@@ -588,8 +588,26 @@ export default function Dashboard() {
         ...prev,
         certifications: [
           ...prev.certifications,
-          { id: Date.now().toString(), title: 'New Certification', issuer: 'Issuer', imageUrl: '', imageUrls: [] }
+          {
+            id: Date.now().toString(),
+            title: 'New Certification',
+            issuer: 'New Issuer',
+            details: '',
+            iconName: 'workspace_premium',
+            imageUrl: '',
+            imageUrls: []
+          }
         ]
+      };
+    });
+  };
+
+  const handleCertificationChange = (id: string, field: string, value: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        certifications: prev.certifications.map(cert => cert.id === id ? { ...cert, [field]: value } : cert)
       };
     });
   };
@@ -1588,26 +1606,52 @@ export default function Dashboard() {
                         <button onClick={() => handleRemoveCertification(cert.id)} className="absolute top-4 right-4 text-secondary hover:text-error">
                           <span className="material-symbols-outlined" data-icon="delete">delete</span>
                         </button>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pr-8">
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Certification Name</label>
-                            <input value={cert.title} onChange={(e) => setFormData(prev => prev ? { ...prev, certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, title: e.target.value } : c) } : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary" type="text" />
+                            <input
+                              value={cert.title}
+                              onChange={(e) => handleCertificationChange(cert.id, 'title', e.target.value)}
+                              className="w-full bg-white border-none rounded p-3 text-sm text-primary"
+                              type="text"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Issuer</label>
+                            <input
+                              value={cert.issuer || ''}
+                              onChange={(e) => handleCertificationChange(cert.id, 'issuer', e.target.value)}
+                              className="w-full bg-white border-none rounded p-3 text-sm text-primary"
+                              type="text"
+                              placeholder="Google Career Certificates"
+                            />
                           </div>
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Background Color Theme</label>
-                            <select value={cert.bgColor || ''} onChange={(e) => setFormData(prev => prev ? { ...prev, certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, bgColor: e.target.value } : c) } : null)} className="w-full bg-white border-none rounded p-3 text-sm text-primary">
+                            <select value={cert.bgColor || 'bg-secondary-container text-on-secondary-container'} onChange={(e) => handleCertificationChange(cert.id, 'bgColor', e.target.value)} className="w-full bg-white border-none rounded p-3 text-sm text-primary">
                               <option value="bg-tertiary-container text-primary-fixed">Soft Gold &amp; Brown</option>
                               <option value="bg-surface-container-highest text-primary">Slate &amp; Dark</option>
-                              <option value="bg-secondary-container text-on-secondary-container">Warm Mocha</option>
+                              <option value="bg-secondary-container text-on-secondary-container">Warm Gray &amp; Espresso</option>
+                              <option value="bg-primary/10 text-primary">Classic Brand</option>
                             </select>
                           </div>
+                        </div>
+                        <div>
+                          <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Details (Shown in View Details)</label>
+                          <textarea
+                            value={cert.details || ''}
+                            onChange={(e) => handleCertificationChange(cert.id, 'details', e.target.value)}
+                            className="w-full bg-white border-none rounded p-3 text-sm text-on-surface-variant"
+                            rows={3}
+                            placeholder="Add full certification details here."
+                          />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Icon Picker</label>
                             <div className="flex items-center gap-3 bg-white p-2 rounded relative">
                               <div className="flex-1">
-                                <IconPicker value={cert.iconName || 'verified'} onChange={(val) => setFormData(prev => prev ? { ...prev, certifications: prev.certifications.map(c => c.id === cert.id ? { ...c, iconName: val } : c) } : null)} label="Choose Icon" className="w-full" />
+                                <IconPicker value={cert.iconName || 'workspace_premium'} onChange={(val) => handleCertificationChange(cert.id, 'iconName', val)} label="Choose Icon" className="w-full" />
                               </div>
                             </div>
                           </div>

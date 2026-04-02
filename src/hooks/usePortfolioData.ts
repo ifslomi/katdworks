@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+
+const SAVE_DEBOUNCE_MS = 450;
+const RETRY_SAVE_MS = 1200;
 
 enum OperationType {
   CREATE = 'create',
@@ -146,6 +149,7 @@ export interface PortfolioData {
     id: string;
     title: string;
     issuer: string;
+    details?: string;
     iconName?: string;
     imageUrl?: string;
     imageUrls?: string[];
@@ -174,16 +178,66 @@ export function usePortfolioData() {
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [readError, setReadError] = useState<string | null>(null);
+  const pendingWriteRef = useRef<Partial<PortfolioData>>({});
+  const hasPendingWriteRef = useRef(false);
+  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPendingWrite = useCallback(async () => {
+    if (!hasPendingWriteRef.current) return;
+
+    const payload = pendingWriteRef.current;
+    pendingWriteRef.current = {};
+    hasPendingWriteRef.current = false;
+
+    try {
+      const docRef = doc(db, 'portfolio', 'main');
+      await setDoc(docRef, payload, { merge: true });
+      setReadError(null);
+    } catch (error) {
+      console.error('Error updating portfolio data:', error);
+      pendingWriteRef.current = { ...payload, ...pendingWriteRef.current };
+      hasPendingWriteRef.current = true;
+      setReadError(error instanceof Error ? error.message : String(error));
+
+      if (!writeTimerRef.current) {
+        writeTimerRef.current = setTimeout(() => {
+          writeTimerRef.current = null;
+          void flushPendingWrite();
+        }, RETRY_SAVE_MS);
+      }
+    }
+  }, []);
+
+  const scheduleWrite = useCallback(() => {
+    if (writeTimerRef.current) {
+      clearTimeout(writeTimerRef.current);
+    }
+
+    writeTimerRef.current = setTimeout(() => {
+      writeTimerRef.current = null;
+      void flushPendingWrite();
+    }, SAVE_DEBOUNCE_MS);
+  }, [flushPendingWrite]);
 
   useEffect(() => {
     const docRef = doc(db, 'portfolio', 'main');
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        setData(docSnap.data() as PortfolioData);
+        const remoteData = docSnap.data() as PortfolioData;
+
+        if (hasPendingWriteRef.current) {
+          // Keep local unsaved edits visible while waiting for debounced writes.
+          setData({ ...remoteData, ...pendingWriteRef.current } as PortfolioData);
+        } else {
+          setData(remoteData);
+        }
+
         setReadError(null);
       } else {
-        setData(null);
-        setReadError('Portfolio document does not exist at portfolio/main.');
+        if (!hasPendingWriteRef.current) {
+          setData(null);
+          setReadError('Portfolio document does not exist at portfolio/main.');
+        }
       }
       setLoading(false);
     }, (error) => {
@@ -196,15 +250,30 @@ export function usePortfolioData() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (writeTimerRef.current) {
+        clearTimeout(writeTimerRef.current);
+        writeTimerRef.current = null;
+      }
+
+      void flushPendingWrite();
+    };
+  }, [flushPendingWrite]);
+
   const updateData = useCallback(async (newData: Partial<PortfolioData>) => {
-    try {
-      const docRef = doc(db, 'portfolio', 'main');
-      await setDoc(docRef, newData, { merge: true });
-    } catch (error) {
-      console.error("Error updating portfolio data:", error);
-      handleFirestoreError(error, OperationType.WRITE, 'portfolio/main');
-    }
-  }, []);
+    setData((prev) => {
+      if (!prev) return newData as PortfolioData;
+      return { ...prev, ...newData };
+    });
+
+    pendingWriteRef.current = {
+      ...pendingWriteRef.current,
+      ...newData,
+    };
+    hasPendingWriteRef.current = true;
+    scheduleWrite();
+  }, [scheduleWrite]);
 
   return { data, loading, updateData, readError };
 }

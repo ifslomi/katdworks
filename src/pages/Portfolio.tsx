@@ -80,6 +80,42 @@ function getUploadProgressByPrefix(uploadProgress: Record<string, number>, prefi
   return Math.round(total / matches.length);
 }
 
+function normalizeText(value?: string) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function getPreviewText(value?: string, maxLength = 160) {
+  const clean = normalizeText(value);
+  if (!clean) return '';
+  if (clean.length <= maxLength) return clean;
+  return `${clean.slice(0, maxLength).trimEnd()}...`;
+}
+
+function getCertificationIssuerLabel(issuer?: string) {
+  const clean = normalizeText(issuer);
+  if (!clean) return '';
+
+  // Preserve short organization names; hide legacy long-form issuer text from the label.
+  if (clean.length > 90 && /[.!?]/.test(clean)) return '';
+
+  return clean;
+}
+
+function getCertificationDetailText(cert?: { issuer?: string; details?: string }) {
+  const explicitDetails = normalizeText(cert?.details);
+  if (explicitDetails) return explicitDetails;
+
+  const legacyIssuer = normalizeText(cert?.issuer);
+  if (!legacyIssuer) return '';
+
+  // Backwards compatibility: some older entries stored details in the issuer field.
+  if (legacyIssuer.length > 90 || (legacyIssuer.length > 70 && /[.!?]/.test(legacyIssuer))) {
+    return legacyIssuer;
+  }
+
+  return '';
+}
+
 type ContactApiResponse = {
   ok?: boolean;
   error?: string;
@@ -146,6 +182,10 @@ export default function Portfolio() {
     : activeCertification
       ? mergeGalleryImages(activeCertification.imageUrl, activeCertification.imageUrls)
       : [];
+  const activeCertificationIssuer = getCertificationIssuerLabel(activeCertification?.issuer);
+  const activeCertificationDetails = getCertificationDetailText(activeCertification || undefined);
+  const activeProjectMeta = normalizeText(activeProject?.itemCount);
+  const activeProjectDetails = normalizeText(activeProject?.description);
   const boundedDetailImageIndex = activeDetailImages.length > 0
     ? Math.min(activeDetailImageIndex, activeDetailImages.length - 1)
     : 0;
@@ -2288,6 +2328,8 @@ export default function Portfolio() {
             {data.certifications.map((cert, i) => {
               const certImages = mergeGalleryImages(cert.imageUrl, cert.imageUrls);
               const certCoverImage = certImages[0];
+              const certIssuerLabel = getCertificationIssuerLabel(cert.issuer);
+              const certDetailPreview = getPreviewText(getCertificationDetailText(cert), 145);
               const certUploadProgress = getUploadProgressByPrefix(uploadProgress, `cert-${cert.id}-`);
 
               return (
@@ -2361,17 +2403,51 @@ export default function Portfolio() {
                         updateData({ certifications: newCerts });
                       }} />
                     </h5>
-                    <p className="text-xs md:text-sm font-medium text-secondary mb-3">
-                      <InlineText value={cert.issuer} onChange={(val) => {
-                        const newCerts = [...data.certifications];
-                        newCerts[i].issuer = val;
-                        updateData({ certifications: newCerts });
-                      }} />
-                    </p>
+                    {!isEditMode && certIssuerLabel && (
+                      <p className="text-xs md:text-sm font-medium text-secondary mb-2">
+                        {certIssuerLabel}
+                      </p>
+                    )}
+
+                    {!isEditMode && certDetailPreview && (
+                      <p
+                        className="text-sm text-on-surface-variant leading-relaxed"
+                        style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                      >
+                        {certDetailPreview}
+                      </p>
+                    )}
 
                     {isEditMode && (
                       <div className="mt-4 pt-4 border-t border-outline-variant/20 space-y-3">
                         <div className="text-[10px] font-bold text-outline-variant uppercase">Admin Controls</div>
+                        <div>
+                          <div className="text-[10px] font-bold text-outline-variant uppercase mb-1">Issuer</div>
+                          <input
+                            type="text"
+                            value={cert.issuer || ''}
+                            onChange={(e) => {
+                              const newCerts = [...data.certifications];
+                              newCerts[i].issuer = e.target.value;
+                              updateData({ certifications: newCerts });
+                            }}
+                            className="w-full bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            placeholder="Google Career Certificates"
+                          />
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-bold text-outline-variant uppercase mb-1">Details (shown in View Details)</div>
+                          <textarea
+                            value={cert.details || ''}
+                            onChange={(e) => {
+                              const newCerts = [...data.certifications];
+                              newCerts[i].details = e.target.value;
+                              updateData({ certifications: newCerts });
+                            }}
+                            className="w-full min-h-[90px] bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            placeholder="Add full certification details here."
+                          />
+                        </div>
                         <IconPicker
                           value={cert.iconName || ''}
                           onChange={(val) => {
@@ -2459,7 +2535,7 @@ export default function Portfolio() {
               <motion.div variants={fadeUp} className="flex items-center justify-center col-span-1 md:col-span-3 lg:col-span-4">
                 <button 
                   onClick={() => {
-                    const newCerts = [...data.certifications, { id: Date.now().toString(), title: 'New Certification', issuer: 'New Issuer', iconName: 'workspace_premium', imageUrl: '', imageUrls: [] }];
+                    const newCerts = [...data.certifications, { id: Date.now().toString(), title: 'New Certification', issuer: 'New Issuer', details: '', iconName: 'workspace_premium', imageUrl: '', imageUrls: [] }];
                     updateData({ certifications: newCerts });
                   }}
                   className="bg-primary/10 text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-primary/20 transition-colors"
@@ -2606,14 +2682,23 @@ export default function Portfolio() {
                       }
                     }} />
                   </h3>
-                  <InlineText multiline value={project.description} className="text-on-surface-variant text-sm leading-relaxed" onChange={(val) => {
-                    const newProjects = [...data.projects];
-                    const pIndex = newProjects.findIndex((p) => p.id === project.id);
-                    if (pIndex !== -1) {
-                      newProjects[pIndex].description = val;
-                      updateData({ projects: newProjects });
-                    }
-                  }} />
+                  {isEditMode ? (
+                    <InlineText multiline value={project.description} className="text-on-surface-variant text-sm leading-relaxed" onChange={(val) => {
+                      const newProjects = [...data.projects];
+                      const pIndex = newProjects.findIndex((p) => p.id === project.id);
+                      if (pIndex !== -1) {
+                        newProjects[pIndex].description = val;
+                        updateData({ projects: newProjects });
+                      }
+                    }} />
+                  ) : (
+                    <p
+                      className="text-on-surface-variant text-sm leading-relaxed min-h-[4.5rem]"
+                      style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                    >
+                      {getPreviewText(project.description, 220)}
+                    </p>
+                  )}
                   {(project.itemCount || (project.tags && project.tags.length > 0)) && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {project.itemCount && (
@@ -2940,7 +3025,7 @@ export default function Portfolio() {
                         transition={{ duration: 0.24 }}
                         src={activeDetailImages[boundedDetailImageIndex]}
                         alt={(activeProject || activeCertification)?.title || 'Detail image'}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain p-2 md:p-4"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
@@ -3029,13 +3114,25 @@ export default function Portfolio() {
                       {activeProject?.title || activeCertification?.title}
                     </h3>
 
-                    <p className="mt-2 text-sm md:text-base text-secondary font-semibold">
-                      {activeProject ? (activeProject.itemCount || 'Portfolio project') : (activeCertification?.issuer || 'Credential issuer')}
-                    </p>
+                    {activeProject ? (
+                      <p className="mt-2 text-sm md:text-base text-secondary font-semibold">
+                        {activeProjectMeta || 'Portfolio project'}
+                      </p>
+                    ) : activeCertificationIssuer ? (
+                      <p className="mt-2 text-sm md:text-base text-secondary font-semibold">
+                        {activeCertificationIssuer}
+                      </p>
+                    ) : null}
 
-                    <p className="mt-5 text-sm md:text-base text-on-surface-variant leading-relaxed whitespace-pre-wrap">
-                      {activeProject?.description || `Issued by ${activeCertification?.issuer || 'a verified organization'}.`}
-                    </p>
+                    {(activeProjectDetails || activeCertificationDetails) ? (
+                      <p className="mt-5 text-sm md:text-base text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                        {activeProjectDetails || activeCertificationDetails}
+                      </p>
+                    ) : activeDetailModal.type === 'certification' ? (
+                      <p className="mt-5 text-sm md:text-base text-on-surface-variant/75 leading-relaxed">
+                        No additional details provided yet.
+                      </p>
+                    ) : null}
 
                     {activeProject && activeProject.tags && activeProject.tags.length > 0 && (
                       <div className="mt-5 flex flex-wrap gap-2">
