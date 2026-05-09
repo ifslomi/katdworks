@@ -100,7 +100,7 @@ export default function Login() {
   }
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
+    <div className="bg-transparent font-body text-on-surface min-h-screen flex flex-col">
       {/* Top Navigation */}
       <motion.header 
         initial={{ y: -50, opacity: 0 }}

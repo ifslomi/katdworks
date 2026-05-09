@@ -722,7 +722,7 @@ export default function Dashboard() {
 
   if (!formData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface px-6 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-transparent px-6 text-center">
         <div>
           <h1 className="font-headline text-2xl font-bold text-primary mb-3">Portfolio document not found</h1>
           <p className="text-sm text-secondary">
@@ -846,7 +846,7 @@ export default function Dashboard() {
                   </span>
               )}
               <div className="flex gap-4">
-                  <Link to="/?adminPreview=1" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-white flex items-center justify-center">
+                  <Link to="/?adminPreview=1" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-surface-container-highest text-primary font-bold text-sm hover:bg-secondary transition-all duration-300 hover:text-on-primary flex items-center justify-center">
                   Preview Site
                   </Link>
                   <button disabled={isSaving} onClick={handleSave} title="Publish your latest content changes" className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-xl shadow-primary/10 active:scale-95 transition-all flex items-center justify-center gap-2">
@@ -1014,7 +1014,7 @@ export default function Dashboard() {
           <div className="col-span-12 lg:col-span-8 space-y-4">
             
             {/* 1. Branding & Navigation */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden" open>
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden" open>
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="branding_watermark">branding_watermark</span>
@@ -1080,7 +1080,7 @@ export default function Dashboard() {
             </details>
 
             {/* 2. Section Headings */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="label">label</span>
@@ -1099,7 +1099,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.about} onChange={(e) => handleSectionVisibilityChange('about', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.about} onChange={(e) => handleSectionTitleChange('about', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1110,7 +1110,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.experience} onChange={(e) => handleSectionVisibilityChange('experience', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.experience} onChange={(e) => handleSectionTitleChange('experience', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1121,7 +1121,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.skills} onChange={(e) => handleSectionVisibilityChange('skills', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.skills} onChange={(e) => handleSectionTitleChange('skills', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1132,7 +1132,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.education} onChange={(e) => handleSectionVisibilityChange('education', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.education} onChange={(e) => handleSectionTitleChange('education', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1143,7 +1143,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.trainings} onChange={(e) => handleSectionVisibilityChange('trainings', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.trainings} onChange={(e) => handleSectionTitleChange('trainings', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1154,7 +1154,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.projects} onChange={(e) => handleSectionVisibilityChange('projects', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.projects} onChange={(e) => handleSectionTitleChange('projects', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1165,7 +1165,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.contact} onChange={(e) => handleSectionVisibilityChange('contact', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.sectionTitles.contact} onChange={(e) => handleSectionTitleChange('contact', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1176,7 +1176,7 @@ export default function Dashboard() {
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                         <input type="checkbox" checked={sectionVisibility.certifications} onChange={(e) => handleSectionVisibilityChange('certifications', e.target.checked)} className="sr-only peer" />
-                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                        <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                       </label>
                     </div>
                     <input value={formData.ui.certificationsTitle} onChange={(e) => handleBrandingChange('certificationsTitle', e.target.value)} className="w-full bg-transparent border-none rounded-lg px-0 py-1 text-2xl md:text-3xl leading-tight font-headline font-bold text-primary focus:ring-0" type="text" />
@@ -1186,7 +1186,7 @@ export default function Dashboard() {
             </details>
 
             {/* 3. Hero & Identity */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="auto_awesome">auto_awesome</span>
@@ -1204,7 +1204,7 @@ export default function Dashboard() {
                     <label className="inline-flex items-center gap-2 cursor-pointer">
                       <span className="text-[10px] font-body uppercase tracking-widest text-secondary">Show</span>
                       <input type="checkbox" checked={sectionVisibility.home} onChange={(e) => handleSectionVisibilityChange('home', e.target.checked)} className="sr-only peer" />
-                      <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                      <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
                     </label>
                   </div>
                   <input
@@ -1326,7 +1326,7 @@ export default function Dashboard() {
             </details>
 
             {/* 4. About & Philosophy */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="history_edu">history_edu</span>
@@ -1401,7 +1401,7 @@ export default function Dashboard() {
             </details>
 
             {/* 5. Experience */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="work">work</span>
@@ -1417,12 +1417,12 @@ export default function Dashboard() {
                   {formData.experience.map((exp, index) => (
                     <div key={exp.id} className="bg-surface-container-low p-4 rounded-lg flex gap-4">
                       <div className="flex-1 space-y-2">
-                        <input value={exp.title} onChange={(e) => handleExperienceChange(exp.id, 'title', e.target.value)} className="w-full bg-white border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Job Title" />
+                        <input value={exp.title} onChange={(e) => handleExperienceChange(exp.id, 'title', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Job Title" />
                         <div className="flex gap-2">
-                            <input value={exp.company} onChange={(e) => handleExperienceChange(exp.id, 'company', e.target.value)} className="flex-1 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Company" />
-                            <input value={exp.period} onChange={(e) => handleExperienceChange(exp.id, 'period', e.target.value)} className="w-1/3 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Period" />
+                            <input value={exp.company} onChange={(e) => handleExperienceChange(exp.id, 'company', e.target.value)} className="flex-1 bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Company" />
+                            <input value={exp.period} onChange={(e) => handleExperienceChange(exp.id, 'period', e.target.value)} className="w-1/3 bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Period" />
                         </div>
-                        <textarea value={exp.description} onChange={(e) => handleExperienceChange(exp.id, 'description', e.target.value)} className="w-full bg-white border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Description"></textarea>
+                        <textarea value={exp.description} onChange={(e) => handleExperienceChange(exp.id, 'description', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Description"></textarea>
                       </div>
                       <div className="flex flex-col justify-between items-center">
                         <button onClick={() => handleRemoveExperience(exp.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
@@ -1438,7 +1438,7 @@ export default function Dashboard() {
             </details>
 
             {/* 6. Education */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="school">school</span>
@@ -1454,12 +1454,12 @@ export default function Dashboard() {
                   {formData.education.map((entry) => (
                     <div key={entry.id} className="bg-surface-container-low p-4 rounded-lg flex gap-4">
                       <div className="flex-1 space-y-2">
-                        <input value={entry.program} onChange={(e) => handleEducationChange(entry.id, 'program', e.target.value)} className="w-full bg-white border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Program" />
+                        <input value={entry.program} onChange={(e) => handleEducationChange(entry.id, 'program', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Program" />
                         <div className="flex gap-2">
-                          <input value={entry.school} onChange={(e) => handleEducationChange(entry.id, 'school', e.target.value)} className="flex-1 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="School" />
-                          <input value={entry.period} onChange={(e) => handleEducationChange(entry.id, 'period', e.target.value)} className="w-1/3 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Period" />
+                          <input value={entry.school} onChange={(e) => handleEducationChange(entry.id, 'school', e.target.value)} className="flex-1 bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" type="text" placeholder="School" />
+                          <input value={entry.period} onChange={(e) => handleEducationChange(entry.id, 'period', e.target.value)} className="w-1/3 bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Period" />
                         </div>
-                        <textarea value={entry.details} onChange={(e) => handleEducationChange(entry.id, 'details', e.target.value)} className="w-full bg-white border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Details"></textarea>
+                        <textarea value={entry.details} onChange={(e) => handleEducationChange(entry.id, 'details', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Details"></textarea>
                       </div>
                       <div className="flex flex-col justify-between items-center">
                         <button onClick={() => handleRemoveEducation(entry.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
@@ -1474,7 +1474,7 @@ export default function Dashboard() {
             </details>
 
             {/* 7. Trainings and Seminars */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
@@ -1490,12 +1490,12 @@ export default function Dashboard() {
                   {formData.trainings && formData.trainings.length > 0 && formData.trainings.map((entry) => (
                     <div key={entry.id} className="bg-surface-container-low p-4 rounded-lg flex gap-4">
                       <div className="flex-1 space-y-2">
-                        <input value={entry.title} onChange={(e) => handleTrainingChange(entry.id, 'title', e.target.value)} className="w-full bg-white border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Training Title" />
+                        <input value={entry.title} onChange={(e) => handleTrainingChange(entry.id, 'title', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-2 font-bold text-sm text-primary" type="text" placeholder="Training Title" />
                         <div className="flex gap-2">
-                          <input value={entry.provider} onChange={(e) => handleTrainingChange(entry.id, 'provider', e.target.value)} className="flex-1 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Provider" />
-                          <input value={entry.date} onChange={(e) => handleTrainingChange(entry.id, 'date', e.target.value)} className="w-1/3 bg-white border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Date" />
+                          <input value={entry.provider} onChange={(e) => handleTrainingChange(entry.id, 'provider', e.target.value)} className="flex-1 bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Provider" />
+                          <input value={entry.date} onChange={(e) => handleTrainingChange(entry.id, 'date', e.target.value)} className="w-1/3 bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" type="text" placeholder="Date" />
                         </div>
-                        <textarea value={entry.details} onChange={(e) => handleTrainingChange(entry.id, 'details', e.target.value)} className="w-full bg-white border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Details"></textarea>
+                        <textarea value={entry.details} onChange={(e) => handleTrainingChange(entry.id, 'details', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-2 text-xs text-on-surface-variant" rows={2} placeholder="Details"></textarea>
                       </div>
                       <div className="flex flex-col justify-between items-center">
                         <button onClick={() => handleRemoveTraining(entry.id)} className="text-secondary hover:text-error"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
@@ -1512,7 +1512,7 @@ export default function Dashboard() {
             </details>
 
             {/* 8. Contact Details */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="contact_phone">contact_phone</span>
@@ -1546,7 +1546,7 @@ export default function Dashboard() {
             </details>
 
             {/* 9. Key Expertise Tags */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="verified">verified</span>
@@ -1584,7 +1584,7 @@ export default function Dashboard() {
 
             
             {/* 7. Certifications */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="workspace_premium">workspace_premium</span>
@@ -1612,7 +1612,7 @@ export default function Dashboard() {
                             <input
                               value={cert.title}
                               onChange={(e) => handleCertificationChange(cert.id, 'title', e.target.value)}
-                              className="w-full bg-white border-none rounded p-3 text-sm text-primary"
+                              className="w-full bg-surface-container-lowest border-none rounded p-3 text-sm text-primary"
                               type="text"
                             />
                           </div>
@@ -1621,14 +1621,14 @@ export default function Dashboard() {
                             <input
                               value={cert.issuer || ''}
                               onChange={(e) => handleCertificationChange(cert.id, 'issuer', e.target.value)}
-                              className="w-full bg-white border-none rounded p-3 text-sm text-primary"
+                              className="w-full bg-surface-container-lowest border-none rounded p-3 text-sm text-primary"
                               type="text"
                               placeholder="Google Career Certificates"
                             />
                           </div>
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Background Color Theme</label>
-                            <select value={cert.bgColor || 'bg-secondary-container text-on-secondary-container'} onChange={(e) => handleCertificationChange(cert.id, 'bgColor', e.target.value)} className="w-full bg-white border-none rounded p-3 text-sm text-primary">
+                            <select value={cert.bgColor || 'bg-secondary-container text-on-secondary-container'} onChange={(e) => handleCertificationChange(cert.id, 'bgColor', e.target.value)} className="w-full bg-surface-container-lowest border-none rounded p-3 text-sm text-primary">
                               <option value="bg-tertiary-container text-primary-fixed">Soft Gold &amp; Brown</option>
                               <option value="bg-surface-container-highest text-primary">Slate &amp; Dark</option>
                               <option value="bg-secondary-container text-on-secondary-container">Warm Gray &amp; Espresso</option>
@@ -1641,7 +1641,7 @@ export default function Dashboard() {
                           <textarea
                             value={cert.details || ''}
                             onChange={(e) => handleCertificationChange(cert.id, 'details', e.target.value)}
-                            className="w-full bg-white border-none rounded p-3 text-sm text-on-surface-variant"
+                            className="w-full bg-surface-container-lowest border-none rounded p-3 text-sm text-on-surface-variant"
                             rows={3}
                             placeholder="Add full certification details here."
                           />
@@ -1649,7 +1649,7 @@ export default function Dashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Icon Picker</label>
-                            <div className="flex items-center gap-3 bg-white p-2 rounded relative">
+                            <div className="flex items-center gap-3 bg-surface-container-lowest p-2 rounded relative">
                               <div className="flex-1">
                                 <IconPicker value={cert.iconName || 'workspace_premium'} onChange={(val) => handleCertificationChange(cert.id, 'iconName', val)} label="Choose Icon" className="w-full" />
                               </div>
@@ -1699,12 +1699,12 @@ export default function Dashboard() {
                         {certImages.length > 0 && (
                           <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                             {certImages.map((image, imageIndex) => (
-                              <div key={`${cert.id}-gallery-${imageIndex}`} className="relative group/thumb rounded-md overflow-hidden border border-outline-variant/20 bg-white">
+                              <div key={`${cert.id}-gallery-${imageIndex}`} className="relative group/thumb rounded-md overflow-hidden border border-outline-variant/20 bg-surface-container-lowest">
                                 <img src={image} className="w-full h-14 object-cover" alt={`Certification ${imageIndex + 1}`} />
                                 <button
                                   type="button"
                                   onClick={() => removeCertificationGalleryImage(cert.id, imageIndex)}
-                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-surface-dim/70 text-on-surface text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                                 >
                                   ×
                                 </button>
@@ -1723,7 +1723,7 @@ export default function Dashboard() {
             </details>
 
             {/* 8. Expertise Cards */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="grid_view">grid_view</span>
@@ -1738,12 +1738,12 @@ export default function Dashboard() {
                 <div className="mt-6 space-y-4">
                   {formData.expertiseCards && formData.expertiseCards.map((card) => (
                     <div key={card.id} className="bg-surface-container-low p-4 rounded-lg flex items-start gap-4">
-                      <div className="w-12 h-12 bg-white rounded flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 bg-surface-container-lowest rounded flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined text-primary" data-icon={card.icon}>{card.icon}</span>
                       </div>
                       <div className="flex-1 space-y-2">
-                        <input type="text" className="w-full bg-white border-none rounded p-2 text-sm font-bold text-primary" value={card.title} onChange={(e) => handleExpertiseCardChange(card.id, 'title', e.target.value)} placeholder="Card Title" />
-                        <textarea className="w-full bg-white border-none rounded p-2 text-xs text-secondary" rows={2} value={card.description} onChange={(e) => handleExpertiseCardChange(card.id, 'description', e.target.value)} placeholder="Description"></textarea>
+                        <input type="text" className="w-full bg-surface-container-lowest border-none rounded p-2 text-sm font-bold text-primary" value={card.title} onChange={(e) => handleExpertiseCardChange(card.id, 'title', e.target.value)} placeholder="Card Title" />
+                        <textarea className="w-full bg-surface-container-lowest border-none rounded p-2 text-xs text-secondary" rows={2} value={card.description} onChange={(e) => handleExpertiseCardChange(card.id, 'description', e.target.value)} placeholder="Description"></textarea>
                         <div className="w-full relative"><IconPicker value={card.icon} onChange={(val) => handleExpertiseCardChange(card.id, 'icon', val)} label="Change Icon" /></div>
                       </div>
                       <button onClick={() => handleRemoveExpertiseCard(card.id)} className="text-secondary hover:text-error mt-2"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
@@ -1757,7 +1757,7 @@ export default function Dashboard() {
             </details>
 
             {/* 9. Featured Projects */}
-            <details className="group bg-white rounded-xl border border-outline-variant/10 overflow-hidden">
+            <details className="group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <summary className="flex items-center justify-between p-6 cursor-pointer hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-4">
                   <span className="material-symbols-outlined text-secondary" data-icon="folder_special">folder_special</span>
@@ -1775,7 +1775,7 @@ export default function Dashboard() {
                     const projectUploadProgress = getUploadProgressByPrefix(uploadProgress, `project-${project.id}-`);
 
                     return (
-                      <div key={project.id} className="bg-white border border-outline-variant/20 p-4 rounded-xl relative">
+                      <div key={project.id} className="bg-surface-container-lowest border border-outline-variant/20 p-4 rounded-xl relative">
                         <button
                           onClick={() => handleRemoveProject(project.id)}
                           className="absolute top-3 right-3 text-secondary hover:text-error"
@@ -1830,7 +1830,7 @@ export default function Dashboard() {
                                   <button
                                     type="button"
                                     onClick={() => removeProjectGalleryImage(project.id, imageIndex)}
-                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-surface-dim/70 text-on-surface text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                                   >
                                     ×
                                   </button>
@@ -1875,32 +1875,32 @@ export default function Dashboard() {
           {/* Right Column: Quick Reference Panel */}
           <div className="col-span-12 lg:col-span-4">
             <div className="sticky top-12 space-y-6">
-              <div className="bg-primary text-white p-8 rounded-xl relative overflow-hidden">
+              <div className="bg-primary text-on-primary p-8 rounded-xl relative overflow-hidden">
                 <div className="relative z-10">
                   <h4 className="font-headline text-xl font-bold mb-6">Editor Insights</h4>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <span className="text-xs text-white/70 font-medium">Total Experience</span>
+                    <div className="flex justify-between items-center border-b border-on-primary/10 pb-2">
+                      <span className="text-xs text-on-primary/70 font-medium">Total Experience</span>
                       <span className="font-headline font-bold text-lg">{formData.experience.length}</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <span className="text-xs text-white/70 font-medium">Total Certifications</span>
+                    <div className="flex justify-between items-center border-b border-on-primary/10 pb-2">
+                      <span className="text-xs text-on-primary/70 font-medium">Total Certifications</span>
                       <span className="font-headline font-bold text-lg">{formData.certifications.length}</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <span className="text-xs text-white/70 font-medium">Total Projects</span>
+                    <div className="flex justify-between items-center border-b border-on-primary/10 pb-2">
+                      <span className="text-xs text-on-primary/70 font-medium">Total Projects</span>
                       <span className="font-headline font-bold text-lg">{formData.projects?.length || 0}</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <span className="text-xs text-white/70 font-medium">Education Items</span>
+                    <div className="flex justify-between items-center border-b border-on-primary/10 pb-2">
+                      <span className="text-xs text-on-primary/70 font-medium">Education Items</span>
                       <span className="font-headline font-bold text-lg">{formData.education.length}</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <span className="text-xs text-white/70 font-medium">Trainings</span>
+                    <div className="flex justify-between items-center border-b border-on-primary/10 pb-2">
+                      <span className="text-xs text-on-primary/70 font-medium">Trainings</span>
                       <span className="font-headline font-bold text-lg">{formData.trainings.length}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/70 font-medium">Total Skills</span>
+                      <span className="text-xs text-on-primary/70 font-medium">Total Skills</span>
                       <span className="font-headline font-bold text-lg">{formData.skills.length}</span>
                     </div>
                   </div>
@@ -1910,7 +1910,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl border border-outline-variant/20 shadow-sm">
+              <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20 shadow-sm">
                 <h4 className="font-body font-bold text-primary text-xs uppercase tracking-widest mb-4">Help &amp; Support</h4>
                 <ul className="space-y-3">
                   <li>
@@ -1957,7 +1957,7 @@ export default function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 z-[70] bg-surface-dim/40 backdrop-blur-sm flex items-center justify-center p-4"
               onClick={() => setActiveModal(null)}
             >
               <motion.div

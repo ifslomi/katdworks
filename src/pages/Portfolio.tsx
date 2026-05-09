@@ -127,9 +127,9 @@ function InlineText({ value, onChange, className, multiline = false }: { value: 
   const isEditMode = useContext(EditModeContext);
   if (!isEditMode) return multiline ? <div className={`whitespace-pre-wrap ${className || ''}`}>{value}</div> : <span className={className}>{value}</span>;
   return multiline ? (
-    <textarea value={value} onChange={(e) => onChange(e.target.value)} className={`bg-white/20 border border-white/50 rounded px-2 py-1 w-full min-h-[100px] text-primary ${className || ''}`} />
+    <textarea value={value} onChange={(e) => onChange(e.target.value)} className={`bg-surface-container-low/20 border border-white/50 rounded px-2 py-1 w-full min-h-[100px] text-primary ${className || ''}`} />
   ) : (
-    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={`bg-white/20 border border-white/50 rounded px-2 py-1 w-full text-primary ${className || ''}`} />
+    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={`bg-surface-container-low/20 border border-white/50 rounded px-2 py-1 w-full text-primary ${className || ''}`} />
   );
 }
 
@@ -986,7 +986,7 @@ export default function Portfolio() {
         <div className="fixed bottom-4 left-4 z-50 flex gap-2">
           <button 
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`px-4 py-2 rounded-full font-bold text-sm shadow-lg transition-colors ${isEditMode ? 'bg-error text-white' : 'bg-primary text-white'}`}
+            className={`px-4 py-2 rounded-full font-bold text-sm shadow-lg transition-colors ${isEditMode ? 'bg-error text-on-error' : 'bg-primary text-on-primary'}`}
           >
             {isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
           </button>
@@ -1007,7 +1007,7 @@ export default function Portfolio() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: isEditMode ? 0 : isNavLockedTop ? 0 : 16, opacity: 1 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-        className={`${navPositionClass} w-[94%] sm:w-[90%] max-w-5xl rounded-full px-4 sm:px-6 py-2 bg-[#faf9f6]/70 backdrop-blur-md flex justify-between items-center z-50 shadow-xl shadow-[#1a1c1a]/5 will-change-transform`}
+        className={`${navPositionClass} w-[94%] sm:w-[90%] max-w-5xl rounded-full px-4 sm:px-6 py-2 bg-surface/60 backdrop-blur-md flex justify-between items-center z-50 shadow-xl shadow-black/50 will-change-transform`}
       >
         <div
           aria-hidden="true"
@@ -1032,14 +1032,14 @@ export default function Portfolio() {
             <img
               src={data.ui.navLogoUrl || '/favicon.svg'}
               alt="Brand"
-              className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-white"
+              className="w-9 h-9 rounded-xl object-cover border border-outline-variant/30 bg-surface-container-low"
               referrerPolicy="no-referrer"
             />
             {isEditMode && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl z-10">
+              <div className="absolute inset-0 bg-surface-dim/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl z-10">
                 <button
                   onClick={() => fileInputRefs.current['navLogo']?.click()}
-                  className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
+                  className="text-[10px] font-bold bg-surface-container-low text-primary px-2 py-1 rounded hover:bg-surface-container-low transition-colors"
                 >
                   Change
                 </button>
@@ -1112,7 +1112,7 @@ export default function Portfolio() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.98 }}
                     transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="absolute right-0 mt-3 w-44 rounded-xl border border-outline-variant/30 bg-white shadow-xl p-2 z-50 will-change-transform"
+                    className="absolute right-0 mt-3 w-44 rounded-xl border border-outline-variant/30 bg-surface-container-low shadow-xl p-2 z-50 will-change-transform"
                   >
                     {overflowNavLinks.map((item) => (
                       <a
@@ -1226,7 +1226,7 @@ export default function Portfolio() {
 
       {/* Hero Section */}
       {showHomeSection && (
-      <section className="relative min-h-[calc(100svh-1.5rem)] flex items-center pt-20 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-gradient-to-br from-surface via-surface-container-low to-surface" id="hero">
+      <section className="relative min-h-[calc(100svh-1.5rem)] flex items-center pt-20 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-transparent" id="hero">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
@@ -1259,7 +1259,7 @@ export default function Portfolio() {
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute top-32 right-1/4 w-24 h-24 border-2 border-outline-variant/20 rounded-xl rotate-12 will-change-transform"
+            className="absolute top-32 right-1/4 w-24 h-24 border-2 border-outline-variant/20 rounded-xl rotate-12 will-change-transform pointer-events-none"
           />
           <motion.div
             animate={{ 
@@ -1388,7 +1388,7 @@ export default function Portfolio() {
                   referrerPolicy="no-referrer"
                 />
                 {isEditMode && (
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute inset-0 bg-surface-dim/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <input 
                       type="file"
                       accept="image/*"
@@ -1402,7 +1402,7 @@ export default function Portfolio() {
                     />
                     <button 
                       onClick={() => fileInputRefs.current['heroImage']?.click()}
-                      className="bg-white text-primary px-4 py-2 rounded-full font-bold text-sm"
+                      className="bg-surface-container-low text-primary px-4 py-2 rounded-full font-bold text-sm"
                     >
                       {uploadProgress['images'] !== undefined ? `Uploading... ${Math.round(uploadProgress['images'])}%` : 'Change Image'}
                     </button>
@@ -1429,7 +1429,7 @@ export default function Portfolio() {
                 initial={{ opacity: 0, x: 20, y: -20 }}
                 animate={{ opacity: 1, x: 0, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.7 }}
-                className="absolute top-0 right-0 w-20 h-20 border-t-4 border-r-4 border-secondary rounded-tr-xl -z-5"
+                className="absolute top-0 right-0 w-20 h-20 border-t-4 border-r-4 border-secondary rounded-tr-xl -z-5 pointer-events-none"
               />
               <motion.div
                 initial={{ opacity: 0, x: -20, y: 20 }}
@@ -1460,7 +1460,7 @@ export default function Portfolio() {
                     transition={{ delay: 0.9 + idx * 0.1, duration: 0.4 }}
                     whileHover={{ scale: 1.15, x: -5 }}
                     whileTap={{ scale: 0.95 }}
-                    className="bg-surface-container text-primary rounded-full p-2.5 shadow-md border border-outline-variant/20 hover:bg-secondary hover:text-white transition-all duration-300"
+                    className="bg-surface-container text-primary rounded-full p-2.5 shadow-md border border-outline-variant/20 hover:bg-secondary hover:text-on-primary transition-all duration-300"
                     href={item.link || '#'}
                     target={item.link && item.link !== '#' ? '_blank' : '_self'}
                     rel="noopener noreferrer"
@@ -1473,7 +1473,7 @@ export default function Portfolio() {
                   </motion.a>
                 ))}
                 {isEditMode && (
-                  <div className="mt-2 w-64 bg-white/90 rounded-lg p-3 space-y-2 border border-outline-variant/40 shadow-xl">
+                  <div className="mt-2 w-64 bg-surface-container-low/90 rounded-lg p-3 space-y-2 border border-outline-variant/40 shadow-xl">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Social Icons</p>
                     {data.ui.socialIcons.map((item, idx) => (
                       <div key={item.id} className="grid grid-cols-1 gap-1">
@@ -1493,7 +1493,7 @@ export default function Portfolio() {
                             next[idx] = { ...next[idx], link: e.target.value };
                             updateData({ ui: { ...data.ui, socialIcons: next } });
                           }}
-                          className="text-xs bg-white border border-outline-variant/40 rounded px-2 py-1"
+                          className="text-xs bg-surface-container-low border border-outline-variant/40 rounded px-2 py-1"
                           placeholder="https://..."
                         />
                         <input
@@ -1548,7 +1548,7 @@ export default function Portfolio() {
 
       {/* About Me */}
       {showAboutSection && (
-      <section className="py-16 md:py-24 bg-surface-container-low relative overflow-hidden" id="about">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="about">
         {/* Top Gradient Blend - Stronger */}
         <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-surface via-surface-container-low/80 to-transparent pointer-events-none z-[5]"></div>
         
@@ -1560,7 +1560,7 @@ export default function Portfolio() {
           <motion.div
             animate={{ y: [0, -30, 0], rotate: [0, 10, 0] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-32 right-20 w-40 h-40 border-2 border-secondary/10 rounded-xl rotate-12"
+            className="absolute top-32 right-20 w-40 h-40 border-2 border-secondary/10 rounded-xl rotate-12 pointer-events-none"
           />
           <motion.div
             animate={{ y: [0, 20, 0], rotate: [0, -15, 0] }}
@@ -1662,7 +1662,7 @@ export default function Portfolio() {
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: 0.7 }}
-                    className="absolute top-0 right-0 w-24 h-24 border-t-4 border-r-4 border-secondary rounded-tr-xl"
+                    className="absolute top-0 right-0 w-24 h-24 border-t-4 border-r-4 border-secondary rounded-tr-xl pointer-events-none"
                   />
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -1682,7 +1682,7 @@ export default function Portfolio() {
                       referrerPolicy="no-referrer"
                     />
                     {isEditMode && (
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-surface-dim/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <input 
                           type="file"
                           accept="image/*"
@@ -1697,13 +1697,13 @@ export default function Portfolio() {
                         <div className="flex flex-col gap-2">
                           <button 
                             onClick={() => fileInputRefs.current['aboutImage']?.click()}
-                            className="bg-white text-primary px-4 py-2 rounded-full font-bold text-sm"
+                            className="bg-surface-container-low text-primary px-4 py-2 rounded-full font-bold text-sm"
                           >
                             {uploadProgress['images'] !== undefined ? `Uploading... ${Math.round(uploadProgress['images'])}%` : 'Change'}
                           </button>
                           <button 
                             onClick={() => updateData({ about: { ...data.about, imageUrl: '' } })}
-                            className="bg-error text-white px-4 py-2 rounded-full font-bold text-sm"
+                            className="bg-error text-on-error px-4 py-2 rounded-full font-bold text-sm"
                           >
                             Remove
                           </button>
@@ -1749,17 +1749,17 @@ export default function Portfolio() {
 
       {/* Experience - Timeline */}
       {showExperienceSection && (
-      <section className="py-16 md:py-24 bg-surface relative overflow-hidden" id="experience">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="experience">
         {/* Animated Background */}
         <motion.div
           animate={{ 
             backgroundPosition: ['0% 0%', '100% 100%'],
           }}
           transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
-          className="absolute inset-0 opacity-[0.02]"
+          className="absolute inset-0 opacity-10 pointer-events-none"
           style={{
-            backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
-            backgroundSize: '50px 50px'
+            backgroundImage: 'radial-gradient(circle, var(--color-outline) 1px, transparent 1px)',
+            backgroundSize: '40px 40px'
           }}
         />
 
@@ -1877,13 +1877,13 @@ export default function Portfolio() {
 
       {/* Education */}
       {showEducationSection && (
-      <section className="py-16 md:py-24 bg-surface-container-low relative overflow-hidden" id="education">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="education">
         {/* Decorative Background */}
         <div className="absolute inset-0 pointer-events-none">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-            className="absolute top-1/4 right-1/4 w-64 h-64 border-2 border-outline-variant/5 rounded-full"
+            className="absolute top-1/4 right-0 w-[40vw] h-[40vw] border-4 border-outline-variant/20 rounded-full border-dashed pointer-events-none"
           />
         </div>
 
@@ -1996,13 +1996,13 @@ export default function Portfolio() {
 
       {/* Trainings and Seminars */}
       {showTrainingsSection && (
-      <section className="py-16 md:py-24 bg-surface relative overflow-hidden" id="trainings">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="trainings">
         <div className="absolute inset-0 pointer-events-none">
           <motion.div
             initial={{ opacity: 0 }}
-            whileInView={{ opacity: 0.03 }}
+            whileInView={{ opacity: 0.15 }}
             viewport={{ once: true }}
-            className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-primary to-transparent"
+            className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-outline-variant/40 to-transparent border-b border-outline-variant/30"
           />
         </div>
 
@@ -2121,7 +2121,7 @@ export default function Portfolio() {
 
       {/* Skills - Bento Grid */}
       {showSkillsSection && (
-      <section className="py-16 md:py-24 bg-surface-container relative overflow-hidden" id="skills">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="skills">
         {/* Animated Grid Background */}
         <motion.div
           animate={{ 
@@ -2252,7 +2252,7 @@ export default function Portfolio() {
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.05 }}
                     whileHover={{ scale: 1.1, y: -2 }}
-                    className="relative group px-3 py-1.5 md:px-4 md:py-2 bg-surface-container-high rounded-full text-[10px] md:text-xs font-bold text-primary hover:bg-secondary hover:text-white transition-colors cursor-default"
+                    className="relative group px-3 py-1.5 md:px-4 md:py-2 bg-surface-container-high rounded-full text-[10px] md:text-xs font-bold text-primary hover:bg-secondary hover:text-on-primary transition-colors cursor-default"
                   >
                     <InlineText value={skill} onChange={(val) => {
                       const newSkills = [...data.skills];
@@ -2265,7 +2265,7 @@ export default function Portfolio() {
                           const newSkills = data.skills.filter((_, idx) => idx !== i);
                           updateData({ skills: newSkills });
                         }}
-                        className="absolute -top-2 -right-2 bg-error text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 bg-error text-on-error rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         ×
                       </button>
@@ -2291,13 +2291,13 @@ export default function Portfolio() {
 
       {/* Certifications */}
       {showCertificationsSection && (
-      <section className="py-14 md:py-18 bg-surface relative overflow-hidden" id="certifications">
+      <section className="py-14 md:py-18 bg-transparent relative overflow-hidden" id="certifications">
         {/* Decorative Elements */}
-        <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.03, 0.05, 0.03] }}
-            transition={{ duration: 8, repeat: Infinity }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-secondary rounded-full blur-3xl"
+            animate={{ scale: [1, 1.05, 1], opacity: [0.1, 0.2, 0.1] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-0 -left-32 w-64 h-full bg-gradient-to-r from-outline-variant/30 to-transparent skew-x-12"
           />
         </div>
 
@@ -2345,7 +2345,7 @@ export default function Portfolio() {
                         const newCerts = data.certifications.filter((_, idx) => idx !== i);
                         updateData({ certifications: newCerts });
                       }}
-                      className="absolute right-2 top-2 text-error bg-white rounded-full p-1 hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow border border-error/10"
+                      className="absolute right-2 top-2 text-error bg-surface-container-low rounded-full p-1 hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow border border-error/10"
                       title="Remove Certification"
                     >
                       <span className="material-symbols-outlined text-sm">delete</span>
@@ -2383,12 +2383,12 @@ export default function Portfolio() {
                           event.stopPropagation();
                           openDetailModal('certification', cert.id);
                         }}
-                        className="text-white text-xs md:text-sm font-bold bg-black/30 backdrop-blur px-3 py-1.5 rounded-full hover:bg-black/45 transition-colors"
+                        className="text-on-surface text-xs md:text-sm font-bold bg-surface-dim/30 backdrop-blur px-3 py-1.5 rounded-full hover:bg-surface-dim/45 transition-colors"
                       >
                         View Details
                       </button>
                       {certImages.length > 0 && (
-                        <span className="text-[11px] text-white/95 bg-black/25 backdrop-blur px-2 py-1 rounded-full">
+                        <span className="text-[11px] text-on-surface/95 bg-surface-dim/25 backdrop-blur px-2 py-1 rounded-full">
                           {certImages.length} photo{certImages.length > 1 ? 's' : ''}
                         </span>
                       )}
@@ -2431,7 +2431,7 @@ export default function Portfolio() {
                               newCerts[i].issuer = e.target.value;
                               updateData({ certifications: newCerts });
                             }}
-                            className="w-full bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="w-full bg-surface-container-low border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
                             placeholder="Google Career Certificates"
                           />
                         </div>
@@ -2444,7 +2444,7 @@ export default function Portfolio() {
                               newCerts[i].details = e.target.value;
                               updateData({ certifications: newCerts });
                             }}
-                            className="w-full min-h-[90px] bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="w-full min-h-[90px] bg-surface-container-low border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
                             placeholder="Add full certification details here."
                           />
                         </div>
@@ -2464,7 +2464,7 @@ export default function Portfolio() {
                             newCerts[i].bgColor = e.target.value;
                             updateData({ certifications: newCerts });
                           }}
-                          className="w-full bg-white border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                          className="w-full bg-surface-container-low border border-outline-variant/40 rounded px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
                         >
                           <option value="bg-tertiary-container text-primary-fixed">Soft Gold & Brown</option>
                           <option value="bg-surface-container-highest text-primary">Slate & Dark</option>
@@ -2517,7 +2517,7 @@ export default function Portfolio() {
                                 <button
                                   type="button"
                                   onClick={() => removeCertificationGalleryImage(cert.id, imageIndex)}
-                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-surface-dim/70 text-on-surface text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                                 >
                                   ×
                                 </button>
@@ -2551,13 +2551,14 @@ export default function Portfolio() {
 
       {/* Projects Section */}
       {showProjectsSection && (
-      <section className="py-14 md:py-18 bg-surface-container-low relative overflow-hidden" id="projects">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="projects">
         {/* Animated Background Pattern */}
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-outline-variant/5 rounded-full"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] border-2 border-outline-variant/30 rounded-full border-dashed pointer-events-none"
         />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] border border-outline-variant/20 rounded-full pointer-events-none" />
 
         <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
           <motion.h2 
@@ -2601,7 +2602,7 @@ export default function Portfolio() {
                         const newProjects = data.projects.filter((p) => p.id !== project.id);
                         updateData({ projects: newProjects });
                       }}
-                      className="absolute -right-4 -top-4 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 bg-white rounded-full shadow-md p-1"
+                      className="absolute -right-4 -top-4 text-error hover:text-error/80 opacity-0 group-hover:opacity-100 transition-opacity z-20 bg-surface-container-low rounded-full shadow-md p-1"
                       title="Remove Project"
                     >
                       <span className="material-symbols-outlined">delete</span>
@@ -2633,18 +2634,18 @@ export default function Portfolio() {
                           event.stopPropagation();
                           openDetailModal('project', project.id);
                         }}
-                        className="text-white text-xs md:text-sm font-bold bg-black/30 backdrop-blur px-3 py-1.5 rounded-full hover:bg-black/45 transition-colors"
+                        className="text-on-surface text-xs md:text-sm font-bold bg-surface-dim/30 backdrop-blur px-3 py-1.5 rounded-full hover:bg-surface-dim/45 transition-colors"
                       >
                         View Details
                       </button>
                       {projectImages.length > 0 && (
-                        <span className="text-[11px] text-white/95 bg-black/25 backdrop-blur px-2 py-1 rounded-full">
+                        <span className="text-[11px] text-on-surface/95 bg-surface-dim/25 backdrop-blur px-2 py-1 rounded-full">
                           {projectImages.length} photo{projectImages.length > 1 ? 's' : ''}
                         </span>
                       )}
                     </motion.div>
                     {isEditMode && (
-                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-surface-dim/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <input
                           type="file"
                           accept="image/*"
@@ -2665,7 +2666,7 @@ export default function Portfolio() {
                             event.stopPropagation();
                             fileInputRefs.current[`project-gallery-${project.id}`]?.click();
                           }}
-                          className="bg-white text-primary px-4 py-2 rounded-full font-bold text-sm shadow-lg"
+                          className="bg-surface-container-low text-primary px-4 py-2 rounded-full font-bold text-sm shadow-lg"
                         >
                           Upload Photos
                         </button>
@@ -2747,7 +2748,7 @@ export default function Portfolio() {
                               <button
                                 type="button"
                                 onClick={() => removeProjectGalleryImage(project.id, imageIndex)}
-                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-surface-dim/70 text-on-surface text-[10px] opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                               >
                                 ×
                               </button>
@@ -2795,14 +2796,16 @@ export default function Portfolio() {
               viewport={{ once: true }}
               className="mt-12 text-center"
             >
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowAllProjects(!showAllProjects)}
-                className="bg-surface-container-highest text-primary px-8 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300 shadow-md"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowAllProjects(!showAllProjects);
+                }}
+                className="relative z-50 pointer-events-auto bg-surface-container-highest text-primary px-8 py-3 rounded-lg font-bold text-sm hover:bg-outline-variant transition-colors duration-300 shadow-md hover:scale-105 active:scale-95 transform"
               >
                 {showAllProjects ? "Show Less" : "View more other projects"}
-              </motion.button>
+              </button>
             </motion.div>
           )}
         </div>
@@ -2811,7 +2814,7 @@ export default function Portfolio() {
 
       {/* Contact Me */}
       {showContactSection && (
-      <section className="py-16 md:py-24 bg-surface relative overflow-hidden" id="contact">
+      <section className="py-16 md:py-24 bg-transparent relative overflow-hidden" id="contact">
         {/* Animated Background */}
         <div className="absolute inset-0 pointer-events-none">
           <motion.div
@@ -2999,7 +3002,7 @@ export default function Portfolio() {
       <AnimatePresence>
         {activeDetailModal && (activeProject || activeCertification) && (
           <motion.div
-            className="fixed inset-0 z-[90] bg-[#111a1f]/65 backdrop-blur-sm p-3 md:p-8"
+            className="fixed inset-0 z-[90] bg-surface-dim/90 backdrop-blur-sm p-3 md:p-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -3014,7 +3017,7 @@ export default function Portfolio() {
               className="mx-auto h-full max-h-[92vh] w-full max-w-6xl rounded-3xl border border-white/15 bg-surface-container-lowest shadow-2xl overflow-hidden"
             >
               <div className="grid h-full grid-cols-1 lg:grid-cols-[1.08fr_0.92fr]">
-                <div className="relative bg-[#0f171c] min-h-[280px] lg:min-h-full">
+                <div className="relative bg-surface-container-lowest min-h-[280px] lg:min-h-full">
                   <AnimatePresence mode="wait">
                     {activeDetailImages[boundedDetailImageIndex] ? (
                       <motion.img
@@ -3034,7 +3037,7 @@ export default function Portfolio() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="h-full w-full flex items-center justify-center text-white/75"
+                        className="h-full w-full flex items-center justify-center text-on-surface/75"
                       >
                         <div className="text-center">
                           <span className="material-symbols-outlined text-5xl mb-2">image_not_supported</span>
@@ -3049,7 +3052,7 @@ export default function Portfolio() {
                       <button
                         type="button"
                         onClick={showPreviousDetailImage}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/35 text-white backdrop-blur hover:bg-black/50 transition-colors"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-surface-dim/35 text-on-surface backdrop-blur hover:bg-surface-dim/50 transition-colors"
                         aria-label="Previous image"
                       >
                         <span className="material-symbols-outlined text-xl">chevron_left</span>
@@ -3057,7 +3060,7 @@ export default function Portfolio() {
                       <button
                         type="button"
                         onClick={showNextDetailImage}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/35 text-white backdrop-blur hover:bg-black/50 transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-surface-dim/35 text-on-surface backdrop-blur hover:bg-surface-dim/50 transition-colors"
                         aria-label="Next image"
                       >
                         <span className="material-symbols-outlined text-xl">chevron_right</span>
@@ -3066,7 +3069,7 @@ export default function Portfolio() {
                   )}
 
                   <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent">
-                    <div className="flex items-center justify-between text-white text-xs">
+                    <div className="flex items-center justify-between text-on-surface text-xs">
                       <span className="font-bold tracking-wide uppercase">
                         {activeDetailModal.type === 'project' ? 'Portfolio Sample' : 'Certification'}
                       </span>

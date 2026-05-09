@@ -34,39 +34,46 @@ export default function App() {
   }, []);
 
   return (
-    <>
-      <Toaster
-        position={isSmallScreen ? 'top-center' : 'bottom-right'}
-        offset={isSmallScreen ? { top: 72 } : { bottom: 18, right: 18 }}
-        theme="system"
-        options={{
-          roundness: 16,
-          fill: '#3a261c',
-          styles: {
-            title: 'text-[#fff6ed]!',
-            description: 'text-[#f4dfcf]!',
-            badge: 'bg-[#d8b39a]! text-[#3a261c]!',
-            button: 'bg-[#5b3b2a]! hover:bg-[#7a5038]! text-[#fff6ed]!'
-          }
-        }}
-      />
-      <Router>
-        <Suspense
-          fallback={
-            <UnifiedLoadingScreen
-              title="Loading page"
-              subtitle="Composing sections and transitions..."
-            />
-          }
-        >
-          <Routes>
-            <Route path="/" element={<Portfolio />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </Router>
-    </>
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden">
+        <div className="ambient-blob ambient-blob-1"></div>
+        <div className="ambient-blob ambient-blob-2"></div>
+        <div className="ambient-blob ambient-blob-3"></div>
+      </div>
+      <div className="relative z-10 font-body text-on-surface">
+        <Toaster
+          position={isSmallScreen ? 'top-center' : 'bottom-right'}
+          offset={isSmallScreen ? { top: 72 } : { bottom: 18, right: 18 }}
+          theme="system"
+          options={{
+            roundness: 16,
+            fill: '#1a1a1a',
+            styles: {
+              title: 'text-[#eeeeee]!',
+              description: 'text-[#bbbbbb]!',
+              badge: 'bg-[#282828]! text-[#eeeeee]!',
+              button: 'bg-[#404040]! hover:bg-[#666666]! text-[#eeeeee]!'
+            }
+          }}
+        />
+        <Router>
+          <Suspense
+            fallback={
+              <UnifiedLoadingScreen
+                title="Loading page"
+                subtitle="Composing sections and transitions..."
+              />
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Portfolio />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </div>
+    </div>
   );
 }
