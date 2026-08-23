@@ -16,6 +16,7 @@ const SUPPORT_EMAIL = 'katdworks@gmail.com';
 const SUPPORT_HOURS = 'Monday-Friday, 9:00 AM - 6:00 PM (UTC+8)';
 const POLICY_EFFECTIVE_DATE = '2026-03-23';
 const POLICY_VERSION = 'v1.0';
+const MAX_INTRO_VIDEO_SIZE_MB = 200;
 
 function mergeGalleryImages(primaryUrl?: string, imageUrls?: string[]) {
   const merged = [...(primaryUrl ? [primaryUrl] : []), ...(imageUrls || [])];
@@ -31,6 +32,30 @@ function getUploadProgressByPrefix(uploadProgress: Record<string, number>, prefi
 
   const total = matches.reduce((sum, value) => sum + value, 0);
   return Math.round(total / matches.length);
+}
+
+type DashboardTrustBadge = {
+  label: string;
+  icon?: string;
+};
+
+function normalizeTrustBadges(
+  badges: PortfolioData['about']['trustBadges'] | undefined
+): DashboardTrustBadge[] {
+  if (!Array.isArray(badges)) return [];
+
+  return badges
+    .map((badge) => {
+      if (!badge) return null;
+      if (typeof badge === 'string') {
+        return { label: badge, icon: 'verified' };
+      }
+      return {
+        label: badge.label || '',
+        icon: badge.icon || 'verified',
+      };
+    })
+    .filter((badge): badge is DashboardTrustBadge => Boolean(badge));
 }
 
 export default function Dashboard() {
@@ -712,6 +737,126 @@ export default function Dashboard() {
       })
   }
 
+  const updateIntroVideoHighlight = (index: number, text: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      const highlights = [...(prev.about.introVideoHighlights || [])];
+      highlights[index] = text;
+      return { ...prev, about: { ...prev.about, introVideoHighlights: highlights } };
+    });
+  };
+
+  const addIntroVideoHighlight = () => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        about: {
+          ...prev.about,
+          introVideoHighlights: [...(prev.about.introVideoHighlights || []), 'New highlight'],
+        },
+      };
+    });
+  };
+
+  const removeIntroVideoHighlight = (index: number) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        about: {
+          ...prev.about,
+          introVideoHighlights: (prev.about.introVideoHighlights || []).filter((_, i) => i !== index),
+        },
+      };
+    });
+  };
+
+  const updateTrustBadge = (index: number, text: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      const badges = normalizeTrustBadges(prev.about.trustBadges);
+      badges[index] = { ...(badges[index] || { icon: 'verified' }), label: text };
+      return { ...prev, about: { ...prev.about, trustBadges: badges } };
+    });
+  };
+
+  const updateTrustBadgeIcon = (index: number, icon: string) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      const badges = normalizeTrustBadges(prev.about.trustBadges);
+      badges[index] = { ...(badges[index] || { label: '' }), icon };
+      return { ...prev, about: { ...prev.about, trustBadges: badges } };
+    });
+  };
+
+  const addTrustBadge = () => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        about: {
+          ...prev.about,
+            trustBadges: [...normalizeTrustBadges(prev.about.trustBadges), { label: 'New trust badge', icon: 'verified' }],
+        },
+      };
+    });
+  };
+
+  const removeTrustBadge = (index: number) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        about: {
+          ...prev.about,
+            trustBadges: normalizeTrustBadges(prev.about.trustBadges).filter((_, i) => i !== index),
+        },
+      };
+    });
+  };
+
+  const handleIntroVideoFileSelect = async (file: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('video/')) {
+      sileo.warning({
+        title: 'Invalid file type',
+        description: 'Please upload a video file (MP4, MOV, WEBM, or OGG).'
+      });
+      return;
+    }
+
+    const maxBytes = MAX_INTRO_VIDEO_SIZE_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      sileo.warning({
+        title: 'Video is too large',
+        description: `Please upload a file smaller than ${MAX_INTRO_VIDEO_SIZE_MB}MB.`
+      });
+      return;
+    }
+
+    await handleFileUpload(
+      file,
+      'videos',
+      (url) => {
+        setFormData(prev => prev ? {
+          ...prev,
+          about: {
+            ...prev.about,
+            introVideoUrl: url,
+            introVideoSourceMode: 'upload',
+          },
+        } : null);
+        sileo.info({
+          title: 'Introduction video uploaded',
+          description: 'The About section now uses this uploaded video.'
+        });
+      },
+      'introVideoFile'
+    );
+  };
+
   if (authLoading || dataLoading) {
     return <UnifiedLoadingScreen title="Loading dashboard" subtitle="Syncing your admin workspace..." />;
   }
@@ -749,6 +894,10 @@ export default function Dashboard() {
     contact: formData.ui.sectionTitles.contact || 'Contact',
     certifications: formData.ui.certificationsTitle || 'Certifications',
   };
+  const introVideoHighlights = formData.about.introVideoHighlights || [];
+  const trustBadges = normalizeTrustBadges(formData.about.trustBadges);
+  const introVideoSourceMode = formData.about.introVideoSourceMode === 'upload' ? 'upload' : 'link';
+  const introVideoAllowDownload = formData.about.introVideoAllowDownload !== false;
   const rangeViews = selectedDailyStats.reduce((sum, day) => sum + (day.views || 0), 0);
   const rangeDownloads = selectedDailyStats.reduce((sum, day) => sum + (day.downloads || 0), 0);
   const rangeBottomScrolls = selectedDailyStats.reduce((sum, day) => sum + (day.bottomScrolls || 0), 0);
@@ -1378,6 +1527,198 @@ export default function Dashboard() {
                     }} />
                   </div>
                   <p className="mt-2 text-[10px] text-secondary">Recommended: High-quality image that represents you or your work.</p>
+                </div>
+                <div>
+                  <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Introduction Video Source</label>
+                  <div className="inline-flex rounded-lg bg-surface-container-low p-1 border border-outline-variant/30">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoSourceMode: 'link' } } : null)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${introVideoSourceMode === 'link' ? 'bg-primary text-on-primary' : 'text-secondary hover:text-primary'}`}
+                    >
+                      Use Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoSourceMode: 'upload' } } : null)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${introVideoSourceMode === 'upload' ? 'bg-primary text-on-primary' : 'text-secondary hover:text-primary'}`}
+                    >
+                      Upload File
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] text-secondary">Choose Link for YouTube/Drive URLs, or Upload File to send a local video to Cloudinary.</p>
+                </div>
+                {introVideoSourceMode === 'link' ? (
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Introduction Video URL</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        value={formData.about.introVideoUrl || ''}
+                        onChange={(e) => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoUrl: e.target.value } } : null)}
+                        className="flex-1 bg-surface-container-low border-none rounded-lg p-3 font-body text-sm text-on-surface-variant focus:ring-2 focus:ring-secondary/20"
+                        type="url"
+                        placeholder="Paste YouTube, Google Drive, Vimeo, or direct .mp4 link"
+                      />
+                      {formData.about.introVideoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoUrl: '' } } : null)}
+                          className={uploadDeleteActionClass}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-2 text-[10px] text-secondary">This controls the “Watch Introduction Video” button shown below your About image.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Upload Introduction Video</label>
+                    <div
+                      onClick={() => fileInputRefs.current['introVideoFile']?.click()}
+                      className={uploadDropzoneClass}
+                    >
+                      <span className="material-symbols-outlined text-secondary" data-icon="smart_display">smart_display</span>
+                      <span className="text-xs text-secondary truncate">
+                        {uploadProgress['introVideoFile'] !== undefined
+                          ? `Uploading video... ${Math.round(uploadProgress['introVideoFile'])}%`
+                          : (formData.about.introVideoUrl ? 'Change Uploaded Video' : 'Upload Video File (.mp4, .mov, .webm, .ogg)')}
+                      </span>
+                      {formData.about.introVideoUrl && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoUrl: '' } } : null);
+                          }}
+                          className={uploadDeleteActionClass}
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                        className="hidden"
+                        ref={(el) => { fileInputRefs.current['introVideoFile'] = el; }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            void handleIntroVideoFileSelect(file);
+                          }
+                          e.currentTarget.value = '';
+                        }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[10px] text-secondary">Max file size: {MAX_INTRO_VIDEO_SIZE_MB}MB. If upload fails, an error message will be shown and no video URL will be changed.</p>
+                  </div>
+                )}
+                <div>
+                  <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Viewer Download Permission</label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={introVideoAllowDownload}
+                      onChange={(e) => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoAllowDownload: e.target.checked } } : null)}
+                      className="sr-only peer"
+                    />
+                    <span className="relative h-5 w-10 rounded-full bg-outline-variant/40 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface-container-lowest after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-5" />
+                    <span className="text-xs text-on-surface-variant">
+                      {introVideoAllowDownload ? 'Download enabled for viewers' : 'Download disabled for viewers'}
+                    </span>
+                  </label>
+                  <p className="mt-2 text-[10px] text-secondary">When disabled, the website player hides download controls. Picture-in-picture and playback speed are always disabled in the site player.</p>
+                </div>
+                <div>
+                  {introVideoSourceMode === 'upload' && formData.about.introVideoUrl && (
+                    <div className="rounded-lg bg-surface-container-low p-3 border border-outline-variant/20">
+                      <p className="text-[10px] uppercase tracking-widest text-secondary mb-1">Current Uploaded Video URL</p>
+                      <p className="text-xs text-on-surface-variant break-all">{formData.about.introVideoUrl}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-4 rounded-lg bg-surface-container-low p-4">
+                  <div>
+                    <h4 className="font-body text-xs font-bold uppercase tracking-widest text-primary">Video Context Block</h4>
+                    <p className="mt-1 text-[10px] text-secondary">These details appear below the video CTA to help clients understand your value quickly.</p>
+                  </div>
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Context Headline</label>
+                    <input
+                      value={formData.about.introVideoHeadline || ''}
+                      onChange={(e) => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoHeadline: e.target.value } } : null)}
+                      className="w-full bg-surface-container-lowest border-none rounded-lg p-3 font-body text-sm text-on-surface-variant focus:ring-2 focus:ring-secondary/20"
+                      type="text"
+                      placeholder="What clients will learn from this video"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">One-line Promise</label>
+                    <textarea
+                      value={formData.about.introVideoPromise || ''}
+                      onChange={(e) => setFormData(prev => prev ? { ...prev, about: { ...prev.about, introVideoPromise: e.target.value } } : null)}
+                      className="w-full bg-surface-container-lowest border-none rounded-lg p-3 font-body text-sm text-on-surface-variant focus:ring-2 focus:ring-secondary/20"
+                      rows={2}
+                      placeholder="Example: I explain how I streamline eCommerce operations while improving customer experience."
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">3 Key Highlights</label>
+                      <button onClick={addIntroVideoHighlight} className="text-[10px] font-bold text-primary flex items-center gap-1 hover:underline" type="button">
+                        <span className="material-symbols-outlined text-sm" data-icon="add">add</span> Add Highlight
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {introVideoHighlights.map((highlight, index) => (
+                        <div key={`highlight-${index}`} className="flex items-center gap-2">
+                          <input
+                            value={highlight}
+                            onChange={(e) => updateIntroVideoHighlight(index, e.target.value)}
+                            className="flex-1 bg-surface-container-lowest border-none rounded-lg p-2.5 text-sm text-on-surface-variant"
+                            type="text"
+                            placeholder={`Highlight ${index + 1}`}
+                          />
+                          <button onClick={() => removeIntroVideoHighlight(index)} className="text-secondary hover:text-error" type="button" aria-label={`Remove highlight ${index + 1}`}>
+                            <span className="material-symbols-outlined text-sm" data-icon="close">close</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block font-body text-[10px] uppercase tracking-widest text-secondary">Trust Badges</label>
+                      <button onClick={addTrustBadge} className="text-[10px] font-bold text-primary flex items-center gap-1 hover:underline" type="button">
+                        <span className="material-symbols-outlined text-sm" data-icon="add">add</span> Add Badge
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {trustBadges.map((badge, index) => (
+                        <div key={`badge-${index}`} className="rounded-lg border border-outline-variant/30 bg-surface-container-lowest p-2.5">
+                          <div className="grid grid-cols-1 gap-2 md:grid-cols-[220px_1fr_auto] md:items-center">
+                            <IconPicker
+                              value={badge.icon || 'verified'}
+                              onChange={(val) => updateTrustBadgeIcon(index, val)}
+                              label="Badge Icon"
+                              className="w-full"
+                            />
+                            <input
+                              value={badge.label}
+                              onChange={(e) => updateTrustBadge(index, e.target.value)}
+                              className="w-full bg-surface-container-low border-none rounded-lg p-2.5 text-sm text-on-surface-variant"
+                              type="text"
+                              placeholder={`Badge ${index + 1}`}
+                            />
+                            <button onClick={() => removeTrustBadge(index)} className="justify-self-end text-secondary hover:text-error" type="button" aria-label={`Remove badge ${index + 1}`}>
+                              <span className="material-symbols-outlined text-sm" data-icon="close">close</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">

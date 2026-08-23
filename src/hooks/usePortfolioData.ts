@@ -122,6 +122,16 @@ export interface PortfolioData {
     quote: string;
     paragraphs: string[];
     imageUrl?: string;
+    introVideoSourceMode?: 'link' | 'upload';
+    introVideoUrl?: string;
+    introVideoAllowDownload?: boolean;
+    introVideoHeadline?: string;
+    introVideoPromise?: string;
+    introVideoHighlights?: string[];
+    trustBadges?: ({
+      label: string;
+      icon?: string;
+    } | string)[];
   };
   experience: {
     id: string;

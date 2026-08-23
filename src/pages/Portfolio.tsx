@@ -116,6 +116,122 @@ function getCertificationDetailText(cert?: { issuer?: string; details?: string }
   return '';
 }
 
+type IntroVideoSource =
+  | { type: 'iframe'; src: string; title: string }
+  | { type: 'html5'; src: string };
+
+type IntroTrustBadge = {
+  label: string;
+  icon?: string;
+};
+
+function resolveIntroVideoSource(rawUrl?: string): IntroVideoSource | null {
+  const clean = normalizeText(rawUrl);
+  if (!clean) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(clean);
+  } catch {
+    return null;
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return null;
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+  const path = parsed.pathname;
+
+  // YouTube links: watch, shorts, embed, and youtu.be
+  if (host === 'youtu.be' || host.endsWith('youtube.com')) {
+    let videoId = '';
+
+    if (host === 'youtu.be') {
+      videoId = path.split('/').filter(Boolean)[0] || '';
+    } else if (path.startsWith('/watch')) {
+      videoId = parsed.searchParams.get('v') || '';
+    } else if (path.startsWith('/shorts/')) {
+      videoId = path.split('/').filter(Boolean)[1] || '';
+    } else if (path.startsWith('/embed/')) {
+      videoId = path.split('/').filter(Boolean)[1] || '';
+    } else if (path.startsWith('/live/')) {
+      videoId = path.split('/').filter(Boolean)[1] || '';
+    }
+
+    if (videoId) {
+      return {
+        type: 'iframe',
+        src: `https://www.youtube.com/embed/${videoId}`,
+        title: 'Introduction video',
+      };
+    }
+  }
+
+  // Google Drive shared links.
+  if (host === 'drive.google.com') {
+    const fileMatch = path.match(/\/file\/d\/([^/]+)/);
+    const fileId = fileMatch?.[1] || parsed.searchParams.get('id') || '';
+    if (fileId) {
+      return {
+        type: 'iframe',
+        src: `https://drive.google.com/file/d/${fileId}/preview`,
+        title: 'Introduction video',
+      };
+    }
+  }
+
+  // Vimeo links.
+  if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) {
+    const vimeoMatch = path.match(/(?:\/video\/)?(\d+)/);
+    const videoId = vimeoMatch?.[1] || '';
+    if (videoId) {
+      return {
+        type: 'iframe',
+        src: `https://player.vimeo.com/video/${videoId}`,
+        title: 'Introduction video',
+      };
+    }
+  }
+
+  if (/\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(parsed.pathname) || (host.includes('cloudinary.com') && path.includes('/video/'))) {
+    return {
+      type: 'html5',
+      src: parsed.toString(),
+    };
+  }
+
+  return {
+    type: 'iframe',
+    src: parsed.toString(),
+    title: 'Introduction video',
+  };
+}
+
+function normalizeIntroTrustBadges(
+  badges: PortfolioData['about']['trustBadges']
+): IntroTrustBadge[] {
+  if (!Array.isArray(badges)) return [];
+
+  return badges
+    .map((badge) => {
+      if (!badge) return null;
+      if (typeof badge === 'string') {
+        const label = normalizeText(badge);
+        return label ? { label, icon: 'verified' } : null;
+      }
+
+      const label = normalizeText(badge.label);
+      if (!label) return null;
+
+      return {
+        label,
+        icon: normalizeText(badge.icon) || 'verified',
+      };
+    })
+    .filter((badge): badge is IntroTrustBadge => Boolean(badge));
+}
+
 type ContactApiResponse = {
   ok?: boolean;
   error?: string;
@@ -158,6 +274,7 @@ export default function Portfolio() {
   const [desktopPrimaryCount, setDesktopPrimaryCount] = useState(5);
   const [activeDetailModal, setActiveDetailModal] = useState<{ type: 'project' | 'certification'; id: string } | null>(null);
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
+  const [isIntroVideoOpen, setIsIntroVideoOpen] = useState(false);
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const contactStartedAtRef = useRef(Date.now());
 
@@ -169,6 +286,10 @@ export default function Portfolio() {
   const closeDetailModal = useCallback(() => {
     setActiveDetailModal(null);
     setActiveDetailImageIndex(0);
+  }, []);
+
+  const closeIntroVideoModal = useCallback(() => {
+    setIsIntroVideoOpen(false);
   }, []);
 
   const activeProject = activeDetailModal?.type === 'project'
@@ -829,16 +950,24 @@ export default function Portfolio() {
   };
 
   useEffect(() => {
-    if (!activeDetailModal) return;
+    if (!activeDetailModal && !isIntroVideoOpen) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        closeDetailModal();
+        if (activeDetailModal) {
+          closeDetailModal();
+        }
+        if (isIntroVideoOpen) {
+          closeIntroVideoModal();
+        }
         return;
       }
+
+      if (!activeDetailModal) return;
+
       if (event.key === 'ArrowRight') {
         showNextDetailImage();
       }
@@ -853,7 +982,7 @@ export default function Portfolio() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [activeDetailModal, closeDetailModal, showNextDetailImage, showPreviousDetailImage]);
+  }, [activeDetailModal, isIntroVideoOpen, closeDetailModal, closeIntroVideoModal, showNextDetailImage, showPreviousDetailImage]);
 
   useEffect(() => {
     if (!activeDetailModal) return;
@@ -896,6 +1025,24 @@ export default function Portfolio() {
       </div>
     );
   }
+
+  const introVideoSource = resolveIntroVideoSource(data.about.introVideoUrl);
+  const introVideoAllowDownload = data.about.introVideoAllowDownload !== false;
+  const introVideoControlsList = [
+    introVideoAllowDownload ? '' : 'nodownload',
+    'noplaybackrate',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const introVideoHeadline = normalizeText(data.about.introVideoHeadline);
+  const introVideoPromise = normalizeText(data.about.introVideoPromise);
+  const introVideoHighlights = (data.about.introVideoHighlights || [])
+    .map((item) => normalizeText(item))
+    .filter(Boolean);
+  const introTrustBadges = normalizeIntroTrustBadges(data.about.trustBadges);
+  const hasIntroVideoContext = Boolean(
+    introVideoHeadline || introVideoPromise || introVideoHighlights.length > 0 || introTrustBadges.length > 0
+  );
 
   const updateCertificationGallery = (certId: string, images: string[]) => {
     const nextCertifications = data.certifications.map((cert) => {
@@ -1711,6 +1858,38 @@ export default function Portfolio() {
                       </div>
                     )}
                   </div>
+                  {introVideoSource && (
+                    <div className="mt-6">
+                      <motion.div
+                        initial={{ opacity: 0, y: 18 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.45, delay: 0.12, ease: 'easeOut' }}
+                        className="flex justify-center"
+                      >
+                        <motion.button
+                          type="button"
+                          onClick={() => setIsIntroVideoOpen(true)}
+                          whileHover={{ y: -2, scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                          className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-on-primary shadow-[0_14px_36px_-20px_rgba(0,0,0,0.75)] transition-all duration-300 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                        >
+                          <span className="pointer-events-none absolute inset-0 -z-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                          <span className="relative inline-flex items-center justify-center">
+                            <motion.span
+                              aria-hidden="true"
+                              className="absolute h-7 w-7 rounded-full bg-white/25"
+                              animate={{ scale: [1, 1.35, 1], opacity: [0.32, 0.05, 0.32] }}
+                              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                            />
+                            <span className="material-symbols-outlined relative text-base transition-transform duration-300 group-hover:scale-110">play_circle</span>
+                          </span>
+                          Watch Introduction Video
+                        </motion.button>
+                      </motion.div>
+                    </div>
+                  )}
                 </motion.div>
               )}
               {isEditMode && !data.about.imageUrl && (
@@ -3160,6 +3339,125 @@ export default function Portfolio() {
                     )}
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isIntroVideoOpen && introVideoSource && (
+          <motion.div
+            className="fixed inset-0 z-[95] flex items-center justify-center overflow-y-auto bg-surface-dim/90 backdrop-blur-sm p-3 md:p-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.26, ease: 'easeOut' }}
+            onClick={closeIntroVideoModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 44, scale: 0.94, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 32, scale: 0.95, filter: 'blur(8px)' }}
+              transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(event) => event.stopPropagation()}
+              className="relative my-auto w-full max-w-4xl rounded-2xl border border-white/15 bg-black shadow-[0_28px_90px_-28px_rgba(0,0,0,0.85)]"
+            >
+              <motion.button
+                type="button"
+                onClick={closeIntroVideoModal}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.94 }}
+                className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-black"
+                aria-label="Close introduction video"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </motion.button>
+
+              <div className="w-full overflow-hidden rounded-2xl">
+                {introVideoSource.type === 'html5' ? (
+                  <motion.video
+                    className="h-auto max-h-[80vh] w-full bg-black"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    src={introVideoSource.src}
+                    controlsList={introVideoControlsList}
+                    disablePictureInPicture
+                    onRateChange={(event) => {
+                      if (event.currentTarget.playbackRate !== 1) {
+                        event.currentTarget.playbackRate = 1;
+                      }
+                    }}
+                    onContextMenu={(event) => {
+                      if (!introVideoAllowDownload) {
+                        event.preventDefault();
+                      }
+                    }}
+                    initial={{ opacity: 0, scale: 1.01 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.28, ease: 'easeOut' }}
+                  />
+                ) : (
+                  <motion.div
+                    className="relative w-full"
+                    style={{ paddingTop: '56.25%' }}
+                    initial={{ opacity: 0, scale: 1.01 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.28, ease: 'easeOut' }}
+                  >
+                    <iframe
+                      title={introVideoSource.title}
+                      src={introVideoSource.src}
+                      className="absolute inset-0 h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; web-share"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  </motion.div>
+                )}
+
+                {hasIntroVideoContext && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                    className="border-t border-white/10 bg-black/80 px-4 py-4 md:px-6 md:py-5"
+                  >
+                    {introVideoHeadline && (
+                      <h4 className="font-headline text-lg font-bold text-white leading-snug">{introVideoHeadline}</h4>
+                    )}
+                    {introVideoPromise && (
+                      <p className="mt-2 text-sm leading-relaxed text-white/80">{introVideoPromise}</p>
+                    )}
+                    {introVideoHighlights.length > 0 && (
+                      <ul className="mt-3 space-y-2 text-sm text-white/90">
+                        {introVideoHighlights.map((highlight, index) => (
+                          <li key={`modal-intro-highlight-${index}`} className="flex items-start gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-secondary" />
+                            <span>{highlight}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {introTrustBadges.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {introTrustBadges.map((badge, index) => (
+                          <span
+                            key={`modal-intro-badge-${index}`}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white"
+                          >
+                            <span className="material-symbols-outlined text-[13px] leading-none">{badge.icon || 'verified'}</span>
+                            {badge.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           </motion.div>
