@@ -108,6 +108,7 @@ export interface PortfolioData {
   hero: {
     headline: string;
     subheadline: string;
+    subheadlineSize?: 'small' | 'medium' | 'large';
     description: string;
     imageUrl: string;
   };

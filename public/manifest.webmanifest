@@ -1,0 +1,19 @@
+{
+  "name": "KatD Works Admin",
+  "short_name": "KDL Admin",
+  "description": "Admin dashboard for reviewing and maintaining the KatD Works portfolio.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

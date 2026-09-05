@@ -17,6 +17,12 @@ const SUPPORT_HOURS = 'Monday-Friday, 9:00 AM - 6:00 PM (UTC+8)';
 const POLICY_EFFECTIVE_DATE = '2026-03-23';
 const POLICY_VERSION = 'v1.0';
 const MAX_INTRO_VIDEO_SIZE_MB = 200;
+const SUPPRESSED_REVIEW_ALERTS_KEY = 'katdworks_suppressed_review_alerts';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 function mergeGalleryImages(primaryUrl?: string, imageUrls?: string[]) {
   const merged = [...(primaryUrl ? [primaryUrl] : []), ...(imageUrls || [])];
@@ -58,6 +64,192 @@ function normalizeTrustBadges(
     .filter((badge): badge is DashboardTrustBadge => Boolean(badge));
 }
 
+type AdminReviewAlert = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+function extractPhoneNumbers(values: string[]) {
+  return values
+    .flatMap((value) => value.match(/\+?\d[\d\s().-]{6,}\d/g) || [])
+    .map((value) => value.replace(/\D/g, ''))
+    .filter((value) => value.length >= 7);
+}
+
+function hasPlaceholderText(value: string) {
+  return /\b(test|testing|placeholder|lorem ipsum|sample|new trust badge|new highlight)\b/i.test(value);
+}
+
+function getAdminReviewAlerts(portfolio: PortfolioData): AdminReviewAlert[] {
+  const alerts: AdminReviewAlert[] = [];
+  const phoneTextSources = [
+    portfolio.contact.phone || '',
+    portfolio.contact.intro || '',
+    ...(portfolio.about.paragraphs || []),
+    portfolio.hero.description || '',
+  ];
+  const phoneNumbers = extractPhoneNumbers(phoneTextSources);
+  const configuredPhone = (portfolio.contact.phone || '').replace(/\D/g, '');
+
+  if (!configuredPhone) {
+    alerts.push({
+      id: 'missing-phone',
+      title: 'Contact phone is missing',
+      description: 'Add a phone number or confirm that the portfolio should not display one.',
+    });
+  }
+
+  if (new Set(phoneNumbers).size > 1 || (configuredPhone && phoneNumbers.some((phone) => phone !== configuredPhone))) {
+    alerts.push({
+      id: 'conflicting-phones',
+      title: 'Phone numbers need checking',
+      description: 'Different phone numbers were found across the contact and profile copy.',
+    });
+  }
+
+  if (!portfolio.about.introVideoUrl?.trim()) {
+    alerts.push({
+      id: 'missing-intro-video',
+      title: 'Introduction video is not uploaded',
+      description: 'Add an introduction video before publishing the portfolio.',
+    });
+  }
+
+  if (!portfolio.hero.headline?.trim() || !portfolio.hero.subheadline?.trim() || !portfolio.hero.description?.trim()) {
+    alerts.push({
+      id: 'incomplete-hero',
+      title: 'Hero content is incomplete',
+      description: 'Confirm the name, role, and introduction text are all filled in before publishing.',
+    });
+  }
+
+  if (!portfolio.hero.imageUrl?.trim()) {
+    alerts.push({
+      id: 'missing-profile-image',
+      title: 'Profile visual is missing',
+      description: 'Add the main profile image or confirm that the hero should intentionally have no image.',
+    });
+  }
+
+  const contactEmail = portfolio.contact.email?.trim() || '';
+  if (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    alerts.push({
+      id: 'invalid-contact-email',
+      title: 'Contact email needs checking',
+      description: 'Add a valid reply-to email address in the contact settings.',
+    });
+  }
+
+  if (!portfolio.contact.intro?.trim()) {
+    alerts.push({
+      id: 'missing-contact-intro',
+      title: 'Contact introduction is blank',
+      description: 'Add a short invitation so visitors know what to contact you about.',
+    });
+  }
+
+  if (!portfolio.portfolioPdfUrl?.trim()) {
+    alerts.push({
+      id: 'missing-portfolio-pdf',
+      title: 'Portfolio PDF is not uploaded',
+      description: 'Upload a PDF or remove the download expectation from the public experience.',
+    });
+  }
+
+  if (!portfolio.about.quote?.trim() || !(portfolio.about.paragraphs || []).some((paragraph) => paragraph.trim())) {
+    alerts.push({
+      id: 'incomplete-about',
+      title: 'About section needs content',
+      description: 'Add the personal quote and at least one biography paragraph.',
+    });
+  }
+
+  const incompleteExperience = (portfolio.experience || []).some((item) => !item.title?.trim() || !item.company?.trim() || !item.description?.trim());
+  const incompleteEducation = (portfolio.education || []).some((item) => !item.program?.trim() || !item.school?.trim());
+  const incompleteTraining = (portfolio.trainings || []).some((item) => !item.title?.trim() || !item.provider?.trim());
+  const incompleteProject = (portfolio.projects || []).some((item) => !item.title?.trim() || !item.description?.trim());
+
+  if (incompleteExperience || incompleteEducation || incompleteTraining || incompleteProject) {
+    alerts.push({
+      id: 'incomplete-records',
+      title: 'Some records are incomplete',
+      description: 'Check experience, education, training, and project entries for missing titles, organizations, or descriptions.',
+    });
+  }
+
+  if (!portfolio.skills?.some((skill) => skill.trim())) {
+    alerts.push({
+      id: 'missing-skills',
+      title: 'No skills are listed',
+      description: 'Add at least one skill or tools tag so the expertise section is useful.',
+    });
+  }
+
+  const navigationLabels = (portfolio.ui.navLinks || []).map((link) => link.label.trim().toLowerCase()).filter(Boolean);
+  if (new Set(navigationLabels).size !== navigationLabels.length) {
+    alerts.push({
+      id: 'duplicate-navigation',
+      title: 'Navigation labels are duplicated',
+      description: 'Give repeated navigation links distinct labels so visitors can tell them apart.',
+    });
+  }
+
+  if (portfolio.about.introVideoUrl?.trim()) {
+    try {
+      const videoUrl = new URL(portfolio.about.introVideoUrl);
+      if (!['http:', 'https:'].includes(videoUrl.protocol)) throw new Error('Unsupported protocol');
+    } catch {
+      alerts.push({
+        id: 'invalid-intro-video-url',
+        title: 'Introduction video URL needs checking',
+        description: 'Use a complete HTTPS video link or upload a supported video file.',
+      });
+    }
+  }
+
+  const introContext = [
+    portfolio.about.introVideoHeadline || '',
+    portfolio.about.introVideoPromise || '',
+    ...(portfolio.about.introVideoHighlights || []),
+    ...normalizeTrustBadges(portfolio.about.trustBadges).map((badge) => badge.label),
+  ];
+  const hasPlaceholderIntroContext = introContext.some(hasPlaceholderText);
+  const hasBlankIntroContext = !portfolio.about.introVideoHeadline?.trim()
+    || !portfolio.about.introVideoPromise?.trim()
+    || (portfolio.about.introVideoHighlights || []).some((highlight) => !highlight.trim())
+    || normalizeTrustBadges(portfolio.about.trustBadges).some((badge) => !badge.label.trim());
+
+  if (hasPlaceholderIntroContext || hasBlankIntroContext) {
+    alerts.push({
+      id: 'intro-context-review',
+      title: 'Introduction video details need review',
+      description: 'Check the video description, highlights, and trust badges for blank or placeholder content.',
+    });
+  }
+
+  const spellingText = [
+    portfolio.hero.headline,
+    portfolio.hero.subheadline,
+    portfolio.hero.description,
+    portfolio.about.quote,
+    ...(portfolio.about.paragraphs || []),
+    portfolio.contact.intro,
+    ...introContext,
+  ].join(' ');
+  const possibleTypo = spellingText.match(/\b(teh|recieve|recieved|seperate|definately|occured|untill|wierd|experiance|profesional|managment|bussiness|succesful|occassion|accomodate|availble|custommer|operatons|shopfiy|marketplce)\b/i)?.[0];
+
+  if (possibleTypo) {
+    alerts.push({
+      id: 'possible-spelling',
+      title: 'Possible spelling issue',
+      description: `Review the word "${possibleTypo}" in the portfolio copy.`,
+    });
+  }
+
+  return alerts;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
@@ -69,8 +261,21 @@ export default function Dashboard() {
   const [formData, setFormData] = useState<PortfolioData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [dismissedReviewAlerts, setDismissedReviewAlerts] = useState<string[]>([]);
+  const [suppressedReviewAlerts, setSuppressedReviewAlerts] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(SUPPRESSED_REVIEW_ALERTS_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
   const [newSkill, setNewSkill] = useState('');
-  const [activeTab, setActiveTab] = useState<'editor'|'analytics'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor'|'analytics'|'pwa'>('editor');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [stats, setStats] = useState<any>({
     views: 0,
     totalViews: 0,
@@ -273,6 +478,34 @@ export default function Dashboard() {
   }, [navigate]);
 
   useEffect(() => {
+    const displayModeQuery = window.matchMedia('(display-mode: standalone)');
+    const updateInstallState = () => {
+      const iosStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      setIsPwaInstalled(displayModeQuery.matches || iosStandalone);
+    };
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setIsPwaInstalled(true);
+      sileo.info({ title: 'PWA installed', description: 'The admin dashboard is now available from your device home screen.' });
+    };
+
+    updateInstallState();
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    displayModeQuery.addEventListener('change', updateInstallState);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      displayModeQuery.removeEventListener('change', updateInstallState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (data && !formData) {
       setFormData(data);
     }
@@ -314,6 +547,32 @@ export default function Dashboard() {
         description: 'Please try again.'
       });
     }
+  };
+
+  const handleInstallPwa = async () => {
+    if (isPwaInstalled) return;
+    if (!installPrompt) {
+      sileo.info({
+        title: 'Use your browser install menu',
+        description: 'On iPhone use Share > Add to Home Screen. On Android or desktop use the browser menu > Install app.',
+      });
+      return;
+    }
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    setInstallPrompt(null);
+    if (choice.outcome === 'accepted') {
+      sileo.info({ title: 'Installing dashboard', description: 'The app shortcut will appear on your device shortly.' });
+    }
+  };
+
+  const handleSuppressReviewAlert = (alertId: string) => {
+    setSuppressedReviewAlerts((current) => {
+      const next = current.includes(alertId) ? current : [...current, alertId];
+      localStorage.setItem(SUPPRESSED_REVIEW_ALERTS_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -406,7 +665,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleHeroChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleHeroChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => prev ? {
       ...prev,
@@ -558,6 +817,7 @@ export default function Dashboard() {
             views: day.views || 0,
             downloads: day.downloads || 0,
             bottomScrolls: day.bottomScrolls || 0,
+            interactions: day.interactions || {},
             referrers: day.referrers || { direct: 0, linkedin: 0, facebook: 0, other: 0 }
           };
         }).reverse();
@@ -898,9 +1158,21 @@ export default function Dashboard() {
   const trustBadges = normalizeTrustBadges(formData.about.trustBadges);
   const introVideoSourceMode = formData.about.introVideoSourceMode === 'upload' ? 'upload' : 'link';
   const introVideoAllowDownload = formData.about.introVideoAllowDownload !== false;
+  const reviewAlerts = getAdminReviewAlerts(formData).filter((alert) => (
+    !dismissedReviewAlerts.includes(alert.id) && !suppressedReviewAlerts.includes(alert.id)
+  ));
   const rangeViews = selectedDailyStats.reduce((sum, day) => sum + (day.views || 0), 0);
   const rangeDownloads = selectedDailyStats.reduce((sum, day) => sum + (day.downloads || 0), 0);
   const rangeBottomScrolls = selectedDailyStats.reduce((sum, day) => sum + (day.bottomScrolls || 0), 0);
+  const rangeInteractions = selectedDailyStats.reduce(
+    (acc, day: any) => {
+      Object.entries(day?.interactions || {}).forEach(([key, value]) => {
+        acc[key] = (acc[key] || 0) + Number(value || 0);
+      });
+      return acc;
+    },
+    {} as Record<string, number>
+  );
   const rangeReferrers = selectedDailyStats.reduce(
     (acc, day: any) => {
       acc.direct += day?.referrers?.direct || 0;
@@ -913,17 +1185,28 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="editorial-grid min-h-screen relative">
+    <div className="min-h-screen relative">
       {/* Sidebar Navigation */}
       <motion.aside
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="bg-surface-container border-r border-outline-variant/10 flex flex-col h-screen sticky top-0 p-8 overflow-y-auto"
+        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[85vw] bg-surface-container border-r border-outline-variant/10 flex flex-col p-8 overflow-y-auto transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="mb-12">
-          <h1 className="font-headline font-black text-2xl text-primary tracking-tighter">KDL Works.</h1>
-          <p className="font-body text-[10px] uppercase tracking-[0.2em] text-secondary mt-1">Admin Control Suite</p>
+        <div className="mb-12 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-headline font-black text-2xl text-primary tracking-tighter">KDL Works.</h1>
+            <p className="font-body text-[10px] uppercase tracking-[0.2em] text-secondary mt-1">Admin Control Suite</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="text-secondary hover:text-primary"
+            aria-label="Hide dashboard navigation"
+            title="Hide navigation"
+          >
+            <span className="material-symbols-outlined">left_panel_close</span>
+          </button>
         </div>
         <nav className="flex-1 flex flex-col gap-2">
           <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('editor'); }} className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${activeTab === 'editor' ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-surface-container-high'}`}>
@@ -933,6 +1216,10 @@ export default function Dashboard() {
           <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); }} className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${activeTab === 'analytics' ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-surface-container-high'}`}>
             <span className="material-symbols-outlined" data-icon="analytics">analytics</span>
             <span className="font-body font-medium text-sm">Analytics</span>
+          </a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('pwa'); }} className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${activeTab === 'pwa' ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-surface-container-high'}`}>
+            <span className="material-symbols-outlined" data-icon="install_mobile">install_mobile</span>
+            <span className="font-body font-medium text-sm">PWA</span>
           </a>
           
         </nav>
@@ -965,12 +1252,77 @@ export default function Dashboard() {
         </div>
       </motion.aside>
 
+      <AnimatePresence>
+        {!isSidebarOpen && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container-highest text-primary shadow-lg border border-outline-variant/30"
+            aria-label="Show dashboard navigation"
+            title="Show navigation"
+          >
+            <span className="material-symbols-outlined">left_panel_open</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {reviewAlerts.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="fixed right-6 bottom-6 z-[60] w-[min(24rem,calc(100vw-3rem))] max-h-[min(34rem,calc(100vh-3rem))] overflow-y-auto rounded-xl border border-secondary/40 bg-surface-container-lowest p-4 shadow-2xl"
+            aria-live="polite"
+          >
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <p className="font-body text-[10px] uppercase tracking-[0.18em] text-secondary">Review before publishing</p>
+                <h2 className="font-headline text-lg font-bold text-primary">{reviewAlerts.length} item{reviewAlerts.length === 1 ? '' : 's'} to check</h2>
+              </div>
+              <span className="material-symbols-outlined text-secondary" aria-hidden="true">fact_check</span>
+            </div>
+            <div className="space-y-2">
+              {reviewAlerts.map((alert) => (
+                <div key={alert.id} className="flex items-start gap-3 rounded-lg bg-surface-container-high p-3">
+                  <span className="material-symbols-outlined text-secondary text-lg mt-0.5" aria-hidden="true">warning</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-primary">{alert.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{alert.description}</p>
+                    <button
+                      type="button"
+                      onClick={() => handleSuppressReviewAlert(alert.id)}
+                      className="mt-2 text-[10px] font-bold uppercase tracking-wider text-secondary underline decoration-secondary/50 underline-offset-2 hover:text-primary"
+                    >
+                      Don&apos;t show again
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedReviewAlerts((current) => [...current, alert.id])}
+                    className="text-secondary hover:text-primary"
+                    aria-label={`Dismiss ${alert.title}`}
+                    title="Dismiss reminder"
+                  >
+                    <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
       {/* Main Workspace */}
       <motion.main
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="p-6 md:p-12 overflow-x-hidden w-full"
+        className={`${isSidebarOpen ? 'lg:ml-[280px]' : 'ml-0'} p-6 md:p-12 overflow-x-hidden w-auto min-w-0 transition-[margin] duration-300`}
       >
         {/* Header Section */}
         <motion.header
@@ -980,11 +1332,13 @@ export default function Dashboard() {
           className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-16"
         >
           <div>
-            <h2 className="font-headline text-4xl md:text-5xl font-black text-primary -ml-1 tracking-tight">{activeTab === 'editor' ? 'Content Editor' : 'Analytics'}</h2>
+            <h2 className="font-headline text-4xl md:text-5xl font-black text-primary -ml-1 tracking-tight">{activeTab === 'editor' ? 'Content Editor' : activeTab === 'analytics' ? 'Analytics' : 'PWA'}</h2>
             <p className="font-body text-secondary mt-2 max-w-md">
               {activeTab === 'editor'
                 ? "Update your digital atelier's presence. Every change reflects your professional standard."
-                : "Live behavioral analytics from your public portfolio traffic and interactions."}
+                : activeTab === 'analytics'
+                  ? "Live behavioral analytics from your public portfolio traffic and interactions."
+                  : "Install a private shortcut to check your portfolio from your phone."}
             </p>
           </div>
           {activeTab === 'editor' && (
@@ -1013,7 +1367,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="col-span-12 flex flex-col gap-8 w-full p-4 lg:p-10 max-w-7xl mx-auto"
+              className="col-span-12 flex flex-col gap-6 w-full"
             >
                 <div className="flex justify-end">
                   <div className="inline-flex rounded-lg bg-surface-container-high p-1 border border-outline-variant/20">
@@ -1069,6 +1423,31 @@ export default function Dashboard() {
                         </div>
                       <p className="text-[10px] text-secondary mt-1 italic">Reached page bottom</p>
                     </div>
+                </div>
+                <div className="bg-surface-container p-6 md:p-8 rounded-lg border border-outline-variant/10 shadow-sm">
+                  <div className="flex items-start justify-between gap-4 mb-6">
+                    <div>
+                      <h2 className="font-headline text-2xl font-bold text-on-surface mb-1">Interaction Clicks</h2>
+                      <p className="text-xs text-on-surface-variant uppercase tracking-widest">Selected date range</p>
+                    </div>
+                    <span className="material-symbols-outlined text-secondary text-3xl">ads_click</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      { key: 'introVideo', label: 'Introduction video', icon: 'play_circle' },
+                      { key: 'portfolioPdf', label: 'Portfolio PDF', icon: 'picture_as_pdf' },
+                      { key: 'contact', label: 'Contact', icon: 'mail' },
+                      { key: 'contactSubmit', label: 'Contact submissions', icon: 'send' },
+                    ].map((item) => (
+                      <div key={item.key} className="bg-surface-container-highest rounded-lg p-4 flex items-center gap-3">
+                        <span className="material-symbols-outlined text-secondary">{item.icon}</span>
+                        <div>
+                          <p className="text-xs text-secondary uppercase tracking-wider">{item.label}</p>
+                          <p className="font-headline text-2xl font-bold text-primary">{rangeInteractions[item.key] || 0}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1153,6 +1532,78 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'pwa' && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="col-span-12 space-y-6"
+            >
+              <section className="bg-primary text-on-primary rounded-xl p-6 md:p-10 relative overflow-hidden">
+                <div className="relative z-10 max-w-2xl">
+                  <p className="text-xs uppercase tracking-[0.2em] text-on-primary/70 mb-3">Progressive Web App</p>
+                  <h2 className="font-headline text-3xl md:text-4xl font-bold mb-4">Your portfolio, one tap away.</h2>
+                  <p className="text-on-primary/80 leading-relaxed max-w-xl">
+                    Install the dashboard as an app on your phone so you can quickly review content, check analytics, and catch publishing issues without searching for the website each time.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleInstallPwa}
+                    disabled={isPwaInstalled}
+                    className="mt-6 inline-flex items-center gap-2 rounded-lg bg-on-primary px-5 py-3 text-sm font-bold text-primary transition-opacity hover:opacity-85 disabled:cursor-default disabled:opacity-60"
+                  >
+                    <span className="material-symbols-outlined text-lg">{isPwaInstalled ? 'check_circle' : 'install_mobile'}</span>
+                    {isPwaInstalled ? 'Installed on this device' : 'Install dashboard app'}
+                  </button>
+                </div>
+                <span className="material-symbols-outlined absolute -right-4 -bottom-8 !text-[180px] text-on-primary/10">install_mobile</span>
+              </section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <section className="lg:col-span-2 bg-surface-container p-6 md:p-8 rounded-xl border border-outline-variant/10">
+                  <h3 className="font-headline text-2xl font-bold text-primary mb-2">How it works</h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed mb-6">The installed shortcut opens this dashboard in its own app window. Your portfolio data and analytics still use the same secure account and live Firestore connection.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      ['1', 'Open the site', 'Sign in to the dashboard in your phone browser.'],
+                      ['2', 'Install it', 'Use the install button or your browser’s Add to Home Screen action.'],
+                      ['3', 'Review quickly', 'Open the new icon to check content, analytics, and reminders.'],
+                    ].map(([step, title, description]) => (
+                      <div key={step} className="bg-surface-container-highest rounded-lg p-4">
+                        <span className="font-headline text-2xl font-bold text-secondary">{step}</span>
+                        <h4 className="font-bold text-primary mt-2 mb-1">{title}</h4>
+                        <p className="text-xs text-on-surface-variant leading-relaxed">{description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl border border-outline-variant/10">
+                  <h3 className="font-headline text-2xl font-bold text-primary mb-5">Install on your phone</h3>
+                  <div className="space-y-5 text-sm">
+                    <div>
+                      <h4 className="font-bold text-primary flex items-center gap-2"><span className="material-symbols-outlined text-secondary">phone_iphone</span>iPhone</h4>
+                      <p className="text-on-surface-variant leading-relaxed mt-2">Open the site in Safari, tap Share, choose Add to Home Screen, then tap Add.</p>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-primary flex items-center gap-2"><span className="material-symbols-outlined text-secondary">phone_android</span>Android</h4>
+                      <p className="text-on-surface-variant leading-relaxed mt-2">Open the site in Chrome, tap the menu, choose Install app or Add to Home screen, then confirm.</p>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-primary flex items-center gap-2"><span className="material-symbols-outlined text-secondary">laptop_mac</span>Desktop</h4>
+                      <p className="text-on-surface-variant leading-relaxed mt-2">Use the install icon in the browser address bar, or open the browser menu and choose Install.</p>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <section className="bg-surface-container-highest rounded-xl border border-outline-variant/20 p-5 flex items-start gap-3">
+                <span className="material-symbols-outlined text-secondary mt-0.5">security</span>
+                <p className="text-sm text-on-surface-variant leading-relaxed">The PWA is a shortcut and app-like window, not a second account. Keep your normal sign-in protection enabled and sign out on shared devices.</p>
+              </section>
             </motion.div>
           )}
 
@@ -1371,9 +1822,22 @@ export default function Dashboard() {
                       name="subheadline"
                       value={formData.hero.subheadline}
                       onChange={handleHeroChange}
-                      className="w-full bg-transparent border-none rounded-lg px-0 py-1 font-headline text-2xl md:text-3xl lg:text-4xl font-black text-primary leading-tight tracking-tight focus:ring-0"
+                      className="w-full bg-transparent border-none rounded-lg px-0 py-1 font-body text-base md:text-lg font-semibold uppercase tracking-widest text-secondary leading-relaxed focus:ring-0"
                       type="text"
                     />
+                    <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mt-4 mb-2" htmlFor="subheadline-size">Sub-headline size</label>
+                    <select
+                      id="subheadline-size"
+                      name="subheadlineSize"
+                      value={formData.hero.subheadlineSize || 'medium'}
+                      onChange={handleHeroChange}
+                      className="w-full bg-surface-container-highest border border-outline-variant/60 rounded-lg px-3 py-2 text-sm font-body font-semibold text-primary focus:border-secondary focus:ring-2 focus:ring-secondary/30"
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      <option className="bg-surface-container-highest text-primary" value="small">Small</option>
+                      <option className="bg-surface-container-highest text-primary" value="medium">Medium</option>
+                      <option className="bg-surface-container-highest text-primary" value="large">Large</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block font-body text-[10px] uppercase tracking-widest text-secondary mb-2">Portfolio PDF</label>

@@ -29,6 +29,12 @@ const SECTION_RENDER_ORDER: PortfolioSectionKey[] = [
   'contact',
 ];
 
+const SUBHEADLINE_SIZE_CLASSES = {
+  small: 'text-sm md:text-base',
+  medium: 'text-base md:text-lg',
+  large: 'text-lg md:text-xl',
+} as const;
+
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
 const getReferrerSource = () => {
@@ -398,6 +404,17 @@ export default function Portfolio() {
       await setDoc(dailyRef, { date: getTodayKey(), downloads: 0, updatedAt: serverTimestamp() }, { merge: true });
       await updateDoc(statsRef, { downloads: increment(1), updatedAt: serverTimestamp() });
       await updateDoc(dailyRef, { downloads: increment(1), updatedAt: serverTimestamp() });
+      await updateDoc(statsRef, { 'interactions.portfolioPdf': increment(1), updatedAt: serverTimestamp() });
+      await updateDoc(dailyRef, { 'interactions.portfolioPdf': increment(1), updatedAt: serverTimestamp() });
+    } catch (e) {}
+  };
+
+  const trackInteraction = async (interaction: 'introVideo' | 'contact' | 'contactSubmit') => {
+    try {
+      const statsRef = doc(db, ANALYTICS_COLLECTION, ANALYTICS_STATS_DOC);
+      const dailyRef = doc(db, ANALYTICS_DAILY_COLLECTION, getTodayKey());
+      await updateDoc(statsRef, { [`interactions.${interaction}`]: increment(1), updatedAt: serverTimestamp() });
+      await updateDoc(dailyRef, { [`interactions.${interaction}`]: increment(1), updatedAt: serverTimestamp() });
     } catch (e) {}
   };
 
@@ -567,6 +584,7 @@ export default function Portfolio() {
         throw new Error(payload.error || 'Unable to send your message right now. Please try again shortly.');
       }
 
+      void trackInteraction('contactSubmit');
       sileo.info({
         title: 'Message sent',
         description: 'Thanks for reaching out. I will get back to you soon.',
@@ -588,6 +606,27 @@ export default function Portfolio() {
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } }
+  };
+
+  const headlineReveal = {
+    hidden: { opacity: 0, y: 42, scale: 0.96, filter: 'blur(8px)' },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      filter: 'blur(0px)',
+      transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] as const }
+    }
+  };
+
+  const roleReveal = {
+    hidden: { opacity: 0, x: -18, y: 10 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }
+    }
   };
 
   const staggerContainer = {
@@ -933,6 +972,9 @@ export default function Portfolio() {
     const targetId = href.replace('#', '');
     const target = document.getElementById(targetId);
     if (!target) return;
+    if (targetId === 'contact') {
+      void trackInteraction('contact');
+    }
 
     const top = Math.max(target.getBoundingClientRect().top + window.scrollY - 110, 0);
     const distance = Math.abs(window.scrollY - top);
@@ -1454,7 +1496,7 @@ export default function Portfolio() {
               className="absolute -left-8 top-0 w-2 h-32 bg-primary rounded-full"
             />
             
-            <motion.h1 variants={fadeUp} className="font-headline text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black text-primary leading-[1.04] mb-4 md:mb-5 -tracking-wider relative">
+            <motion.h1 variants={headlineReveal} className="font-headline text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black text-primary leading-[1.04] mb-4 md:mb-5 -tracking-wider relative">
               <span className="relative inline-block">
                 <InlineText value={data.hero.headline} onChange={(val) => updateData({ hero: { ...data.hero, headline: val } })} />
                 <motion.span
@@ -1464,17 +1506,13 @@ export default function Portfolio() {
                   className="absolute -bottom-2 left-0 h-1 bg-secondary/30 rounded-full"
                 />
               </span>
-              <br />
-              <span className="relative inline-block">
-                <InlineText value={data.hero.subheadline} onChange={(val) => updateData({ hero: { ...data.hero, subheadline: val } })} />
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: 1, ease: "backOut" }}
-                  className="absolute -right-8 top-0 w-6 h-6 bg-secondary rounded-full opacity-40"
-                />
-              </span>
             </motion.h1>
+            <motion.div
+              variants={roleReveal}
+              className={`relative inline-block max-w-full font-body font-semibold uppercase tracking-[0.12em] text-secondary leading-relaxed mb-5 md:mb-6 ${SUBHEADLINE_SIZE_CLASSES[data.hero.subheadlineSize || 'medium']}`}
+            >
+                <InlineText value={data.hero.subheadline} onChange={(val) => updateData({ hero: { ...data.hero, subheadline: val } })} />
+            </motion.div>
             <motion.div variants={fadeUp} className="text-base text-on-surface-variant font-body max-w-lg mb-6 md:mb-7 leading-relaxed">
               <InlineText multiline value={data.hero.description} onChange={(val) => updateData({ hero: { ...data.hero, description: val } })} />
             </motion.div>
@@ -1869,7 +1907,10 @@ export default function Portfolio() {
                       >
                         <motion.button
                           type="button"
-                          onClick={() => setIsIntroVideoOpen(true)}
+                          onClick={() => {
+                            void trackInteraction('introVideo');
+                            setIsIntroVideoOpen(true);
+                          }}
                           whileHover={{ y: -2, scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           transition={{ type: 'spring', stiffness: 320, damping: 22 }}
